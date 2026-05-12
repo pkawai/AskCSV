@@ -6,6 +6,14 @@ const uploadStatus = $("#upload-status");
 
 let currentSessionId = null;
 
+// Clean SVG icon for close/delete buttons. Font-glyph × renders as Cyrillic Ч
+// or empty box in some macOS Chrome configurations — inline SVG is bulletproof.
+const CLOSE_ICON_SVG = `
+  <svg viewBox="0 0 14 14" width="12" height="12" fill="none" aria-hidden="true">
+    <path d="M3 3 L11 11 M11 3 L3 11" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+
 // Poll /usage after any LLM-touching action so the chip stays fresh.
 async function refreshUsageChip() {
   try {
@@ -202,6 +210,30 @@ function renderOverview(session, report) {
   $("#cleaning-report").innerHTML = reportLines.map((l) => `<p>${l}</p>`).join("");
 }
 
+// ---------- Column profile cards (redesigned for non-DS readers) ----------
+
+// Friendly labels per dtype kind. The internal name is technical; users see plain English.
+const KIND_DISPLAY = {
+  numeric: { label: "Number", icon: "#" },
+  datetime: { label: "Date", icon: "📅" },
+  categorical: { label: "Category", icon: "≡" },
+  boolean: { label: "Yes/No", icon: "◧" },
+};
+
+function _fmtNum(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  if (typeof n !== "number") return String(n);
+  if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  if (Math.abs(n) >= 1) return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
+function _fmtDate(s) {
+  if (!s) return "—";
+  // Server sends ISO-ish strings like '2025-01-03 00:00:00'. Strip the time.
+  return String(s).split(" ")[0].split("T")[0];
+}
+
 function renderColumns(cols) {
   $("#columns-section").hidden = false;
   $("#columns-grid").innerHTML = cols
@@ -211,27 +243,65 @@ function renderColumns(cols) {
 }
 
 function columnCard(c) {
-  const stats = [];
+  const display = KIND_DISPLAY[c.kind] || { label: c.kind, icon: "·" };
+  const total = c.null_count + (c.unique_count || 0); // rough denominator for null %
+  const nullsLine =
+    c.null_count === 0
+      ? `<div class="col-row col-row-ok">✓ No missing values</div>`
+      : `<div class="col-row col-row-warn">⚠ ${c.null_count.toLocaleString()} missing values</div>`;
+
+  let bodyLines = "";
   if (c.kind === "numeric") {
-    stats.push(`min ${c.min}`, `max ${c.max}`, `mean ${c.mean}`);
+    bodyLines = `
+      <div class="col-row"><span class="col-row-k">Range</span>
+        <span class="col-row-v">${_fmtNum(c.min)} → ${_fmtNum(c.max)}</span></div>
+      <div class="col-row"><span class="col-row-k">Average</span>
+        <span class="col-row-v">${_fmtNum(c.mean)}</span></div>
+      <div class="col-row"><span class="col-row-k">Distinct values</span>
+        <span class="col-row-v">${c.unique_count.toLocaleString()}</span></div>
+    `;
   } else if (c.kind === "datetime") {
-    stats.push(`${c.min} → ${c.max}`);
+    bodyLines = `
+      <div class="col-row"><span class="col-row-k">From</span>
+        <span class="col-row-v">${_fmtDate(c.min)}</span></div>
+      <div class="col-row"><span class="col-row-k">To</span>
+        <span class="col-row-v">${_fmtDate(c.max)}</span></div>
+      <div class="col-row"><span class="col-row-k">Distinct dates</span>
+        <span class="col-row-v">${c.unique_count.toLocaleString()}</span></div>
+    `;
   } else if (c.kind === "boolean") {
-    stats.push(`true ${c.true_count}`, `false ${c.false_count}`);
-  } else if (c.kind === "categorical") {
-    stats.push(`${c.unique_count} unique`);
-    if (c.top_values && c.top_values.length) {
-      stats.push(`top: ${c.top_values.slice(0, 2).map((v) => v.value).join(", ")}`);
-    }
+    bodyLines = `
+      <div class="col-row"><span class="col-row-k">True</span>
+        <span class="col-row-v">${(c.true_count || 0).toLocaleString()}</span></div>
+      <div class="col-row"><span class="col-row-k">False</span>
+        <span class="col-row-v">${(c.false_count || 0).toLocaleString()}</span></div>
+    `;
+  } else {
+    // categorical
+    const top = (c.top_values || []).slice(0, 3);
+    const examples = top.length
+      ? top.map((v) => `<code class="col-eg">${escapeHtml(v.value)}</code>`).join(" ")
+      : '<span class="col-row-v">—</span>';
+    const isUnique = c.unique_count === total;
+    const subheading = isUnique
+      ? `${c.unique_count.toLocaleString()} unique values (one per row)`
+      : `${c.unique_count.toLocaleString()} ${c.unique_count === 1 ? "category" : "categories"}`;
+    bodyLines = `
+      <div class="col-row"><span class="col-row-k">${subheading}</span></div>
+      ${top.length ? `<div class="col-row col-examples"><span class="col-row-k">Most common</span><span class="col-row-v">${examples}</span></div>` : ""}
+    `;
   }
+
   return `
     <article class="column-card">
-      <header>
-        <span class="col-name">${c.name}</span>
-        <span class="col-kind kind-${c.kind}">${c.kind}</span>
+      <header class="col-head">
+        <span class="col-name">${escapeHtml(c.name)}</span>
+        <span class="col-kind kind-${c.kind}" title="${display.label}">${display.icon} ${display.label}</span>
       </header>
-      <div class="col-stats">${stats.join(" · ")}</div>
-      <div class="col-meta">nulls: ${c.null_count} · unique: ${c.unique_count}</div>
+      <div class="col-body">
+        ${bodyLines}
+        ${nullsLine}
+      </div>
     </article>
   `;
 }
@@ -239,18 +309,49 @@ function columnCard(c) {
 function renderMissingChart(mvm) {
   if (!mvm.columns.length) return;
   $("#missing-section").hidden = false;
+  const target = document.getElementById("missing-chart");
+
+  // Filter columns that actually have nulls so we don't show 21 zero-bars.
+  const items = mvm.columns
+    .map((c, i) => ({ col: c, pct: mvm.null_pct[i], count: mvm.null_counts[i] }))
+    .filter((d) => d.count > 0)
+    .sort((a, b) => b.pct - a.pct);
+
+  if (items.length === 0) {
+    target.innerHTML =
+      '<div class="empty-good">' +
+      '<span class="empty-icon">✓</span>' +
+      '<div><strong>No missing values</strong>' +
+      '<p>Every cell in every column has a value.</p></div>' +
+      '</div>';
+    return;
+  }
+
+  // Horizontal bar — labels read cleanly even with 20+ columns.
   Plotly.newPlot(
-    "missing-chart",
+    target,
     [
       {
         type: "bar",
-        x: mvm.columns,
-        y: mvm.null_pct,
-        marker: { color: "#38bdf8" },
-        hovertemplate: "%{x}<br>nulls: %{y}%<extra></extra>",
+        orientation: "h",
+        y: items.map((d) => d.col),
+        x: items.map((d) => d.pct),
+        marker: { color: "#fbbf24", line: { color: "rgba(255,255,255,0.1)", width: 1 } },
+        text: items.map((d) => `${d.count.toLocaleString()} (${d.pct.toFixed(1)}%)`),
+        textposition: "outside",
+        textfont: { color: "#e2e8f0", size: 11 },
+        hovertemplate: "<b>%{y}</b><br>%{x:.2f}% missing<extra></extra>",
+        cliponaxis: false,
       },
     ],
-    { ...PLOTLY_LAYOUT, yaxis: { title: "null %" }, height: 280 },
+    {
+      ...PLOTLY_LAYOUT,
+      height: Math.max(120, items.length * 28 + 60),
+      xaxis: { title: "% missing", range: [0, 105], gridcolor: "rgba(148,163,184,0.15)" },
+      yaxis: { automargin: true, ticksuffix: "  " },
+      margin: { l: 140, r: 60, t: 20, b: 40 },
+      showlegend: false,
+    },
     { displayModeBar: false, responsive: true }
   );
 }
@@ -258,6 +359,21 @@ function renderMissingChart(mvm) {
 function renderCorrelationChart(corr) {
   if (corr.columns.length < 2) return;
   $("#correlation-section").hidden = false;
+  // Wider left + bottom margin + automargin so long column names don't clip.
+  // Per-cell annotation text so users can read values directly.
+  const annotations = [];
+  for (let i = 0; i < corr.values.length; i++) {
+    for (let j = 0; j < corr.values[i].length; j++) {
+      const v = corr.values[i][j];
+      annotations.push({
+        x: corr.columns[j],
+        y: corr.columns[i],
+        text: v === null || Number.isNaN(v) ? "" : v.toFixed(2),
+        showarrow: false,
+        font: { color: Math.abs(v) > 0.6 ? "#ffffff" : "#0f172a", size: 11 },
+      });
+    }
+  }
   Plotly.newPlot(
     "correlation-chart",
     [
@@ -270,10 +386,18 @@ function renderCorrelationChart(corr) {
         zmax: 1,
         colorscale: "RdBu",
         reversescale: true,
-        hovertemplate: "%{x} vs %{y}<br>r = %{z}<extra></extra>",
+        hovertemplate: "<b>%{x}</b> vs <b>%{y}</b><br>r = %{z:.3f}<extra></extra>",
+        showscale: true,
       },
     ],
-    { ...PLOTLY_LAYOUT, height: 320 },
+    {
+      ...PLOTLY_LAYOUT,
+      height: Math.max(280, corr.columns.length * 40 + 120),
+      xaxis: { automargin: true, side: "bottom", tickangle: -30 },
+      yaxis: { automargin: true, autorange: "reversed" },
+      margin: { l: 120, r: 60, t: 30, b: 80 },
+      annotations,
+    },
     { displayModeBar: false, responsive: true }
   );
 }
@@ -327,7 +451,7 @@ async function askQuestion(question) {
     turn.innerHTML = `
       <div class="chat-q">
         <span class="chat-q-text">${escapeHtml(question)}</span>
-        <button class="chat-delete" aria-label="Remove this answer">×</button>
+        <button class="chat-delete" aria-label="Remove this answer">${CLOSE_ICON_SVG}</button>
       </div>
       <div class="chat-error">Error: ${escapeHtml(err.message)}</div>`;
     turn.querySelector(".chat-delete").addEventListener("click", () => turn.remove());
@@ -396,7 +520,7 @@ function renderChatTurn(turn, data) {
     <div class="chat-q">
       <span class="chat-q-text">${escapeHtml(originalQuestion)}</span>
       ${cacheBadge}
-      <button class="chat-delete" aria-label="Remove this answer">×</button>
+      <button class="chat-delete" aria-label="Remove this answer">${CLOSE_ICON_SVG}</button>
     </div>
     <div class="chat-insight">${insight ? escapeHtml(insight) : "(no insight returned)"}</div>
     ${kindToolbar}
@@ -687,7 +811,7 @@ function renderShelfPill(shelfEl, name, kind, shelfKey) {
   shelfEl.innerHTML = `
     <span class="shelf-pill shelf-pill-${kind}">
       ${escapeHtml(name)}
-      <button class="shelf-pill-x" data-shelf="${shelfKey}" aria-label="remove">×</button>
+      <button class="shelf-pill-x" data-shelf="${shelfKey}" aria-label="remove">${CLOSE_ICON_SVG}</button>
     </span>`;
   shelfEl.querySelector(".shelf-pill-x").addEventListener("click", () => {
     builderState[shelfKey] = null;
