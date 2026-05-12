@@ -53,3 +53,26 @@ def test_upload_rejects_non_csv(client):
 def test_upload_rejects_missing_file(client):
     resp = client.post("/upload", data={}, content_type="multipart/form-data")
     assert resp.status_code == 400
+
+
+def test_profile_route_after_upload(client):
+    with open(SAMPLES / "sales.csv", "rb") as fh:
+        upload_resp = client.post(
+            "/upload",
+            data={"file": (fh, "sales.csv")},
+            content_type="multipart/form-data",
+        )
+    session_id = upload_resp.get_json()["session"]["session_id"]
+    prof_resp = client.get(f"/profile/{session_id}")
+    assert prof_resp.status_code == 200
+    data = prof_resp.get_json()
+    assert "profile" in data
+    assert "suggested_charts" in data
+    assert data["profile"]["row_count"] == 25
+    # sales.csv has datetime + numeric columns -> at least one suggestion.
+    assert len(data["suggested_charts"]) > 0
+
+
+def test_profile_route_unknown_session(client):
+    resp = client.get("/profile/does-not-exist")
+    assert resp.status_code == 404

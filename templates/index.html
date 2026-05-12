@@ -5,18 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AskCSV — AI-powered CSV analyst</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <!-- Plotly via CDN for now; vendored in PR #10. -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 <body>
   <header>
     <h1>AskCSV</h1>
     <p class="tagline">Drop a CSV. Get clean data, smart charts, and an AI analyst.</p>
   </header>
+
   <main id="app">
-    <!-- Upload zone, profile dashboard, and chat panel land here in PRs #2-#6. -->
-    <section class="placeholder">
-      <p>Project skeleton — features land incrementally per the build plan.</p>
+    <section id="upload-zone" class="upload-zone">
+      <label for="csv-file" class="drop-label">
+        <strong>Upload a CSV</strong>
+        <span class="hint">Drag a file here or click to choose</span>
+        <input id="csv-file" type="file" accept=".csv" hidden>
+      </label>
+      <div id="upload-status" class="upload-status" hidden></div>
+    </section>
+
+    <section id="overview" class="card" hidden>
+      <h2>Overview</h2>
+      <div id="overview-stats" class="stats-grid"></div>
+      <div id="cleaning-report" class="cleaning-report"></div>
+    </section>
+
+    <section id="columns-section" class="card" hidden>
+      <h2>Columns</h2>
+      <div id="columns-grid" class="columns-grid"></div>
+    </section>
+
+    <section id="missing-section" class="card" hidden>
+      <h2>Missing values</h2>
+      <div id="missing-chart"></div>
+    </section>
+
+    <section id="correlation-section" class="card" hidden>
+      <h2>Correlation matrix</h2>
+      <div id="correlation-chart"></div>
+    </section>
+
+    <section id="suggested-section" class="card" hidden>
+      <h2>Suggested charts</h2>
+      <div id="suggested-grid" class="suggested-grid"></div>
     </section>
   </main>
+
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
