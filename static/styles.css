@@ -787,6 +787,44 @@ main {
   font-weight: 600;
 }
 
+/* Time-series overlay toggles */
+
+.chart-overlays {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.overlay-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.overlay-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.overlay-btn:hover { color: var(--fg); border-color: var(--accent-2); }
+
+.overlay-btn.active {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: #fbbf24;
+  font-weight: 600;
+}
+
 /* Chat actions in the header */
 
 .chat-actions {
