@@ -11,7 +11,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from src import cleaner, ingest, storage
+from src import chart_suggester, cleaner, ingest, profiler, storage
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -58,6 +58,25 @@ def create_app() -> Flask:
             {
                 "session": session.to_dict(),
                 "cleaning_report": report.to_dict(),
+            }
+        )
+
+    @app.route("/profile/<session_id>")
+    def profile_route(session_id: str):
+        """Return per-column profile + suggested charts for an uploaded session."""
+        session = storage.get_session(session_id)
+        if session is None:
+            return jsonify({"error": "Unknown session_id"}), 404
+        df = storage.load_dataframe(session_id)
+        if df is None:
+            return jsonify({"error": "Dataframe missing for this session"}), 404
+        prof = profiler.profile(df)
+        suggestions = chart_suggester.suggest_charts(prof)
+        return jsonify(
+            {
+                "session": session.to_dict(),
+                "profile": prof,
+                "suggested_charts": suggestions,
             }
         )
 
