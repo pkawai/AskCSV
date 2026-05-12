@@ -10,9 +10,15 @@
 </head>
 <body>
   <header>
-    <h1>AskCSV</h1>
-    <p class="tagline">Drop a CSV. Get clean data, smart charts, and an AI analyst.</p>
+    <div class="header-row">
+      <div>
+        <h1>AskCSV</h1>
+        <p class="tagline">Drop a CSV. Get clean data, smart charts, and an AI analyst.</p>
+      </div>
+      <div id="usage-chip" class="usage-chip" title="LLM tokens used this session" hidden></div>
+    </div>
   </header>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <main id="app">
     <section id="upload-zone" class="upload-zone">

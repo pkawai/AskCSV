@@ -24,8 +24,30 @@ python app.py          # http://127.0.0.1:5000
 
 ## Tests
 ```bash
-pytest -v
+pytest -v   # 120+ tests, all mocked — no network required
 ```
+
+## Demo walkthrough (Week 16, ~7 minutes)
+
+1. `python app.py`, open `http://127.0.0.1:5000`.
+2. Drag `data/samples/sales.csv` onto the upload zone.
+3. **Overview** card appears: rows, columns, encoding, duplicates removed.
+4. **Columns** grid shows per-column dtype + null / unique counts.
+5. **Missing values** bar chart and **Correlation matrix** heatmap render.
+6. **Suggested charts** grid shows 4–6 rule-based suggestions.
+7. **Ask the analyst** panel appears. Try:
+   - "average revenue by region"
+   - "top 3 products by total revenue"
+   - "monthly revenue trend"
+8. Each turn shows: question, insight, Plotly chart, follow-up chips,
+   expandable **Tool trace** with every `groupby_aggregate`/`filter`/`plot` call.
+9. Click a follow-up chip → second answer renders, often with **cached** badge.
+10. Token chip in the header updates after every call (`5 calls · 7,832 tokens`).
+11. Click **Export report ↗** in the chat header — standalone HTML opens
+    with the whole session.
+12. In a terminal, run `pytest -v` to show the test suite is green.
+13. Walk through `git log --oneline --graph` to show the 10 PRs with proper
+    merge commits.
 
 ## Tech stack
 - **Backend:** Flask 3.0+, pandas 2.2+, pyarrow (parquet sessions), SQLite (response cache).

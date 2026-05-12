@@ -24,3 +24,16 @@ def test_health(client):
     assert resp.status_code == 200
     payload = resp.get_json()
     assert payload == {"status": "ok", "app": "AskCSV"}
+
+
+def test_usage_returns_zeros_when_no_key(client, monkeypatch):
+    # Force the lazy singleton path through a missing-key branch.
+    from src import groq_client as gc
+
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    gc.reset_client_for_tests()
+    resp = client.get("/usage")
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["calls"] == 0
+    assert payload["configured"] is False

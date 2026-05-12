@@ -9,6 +9,7 @@ Designed to handle the three common ugly cases:
 from __future__ import annotations
 
 import io
+import warnings
 from pathlib import Path
 from typing import Union
 
@@ -80,11 +81,14 @@ def _try_parse_dates(s: pd.Series) -> tuple[pd.Series, bool]:
                 return pd.to_datetime(s, format=fmt, errors="coerce"), True
         except (ValueError, TypeError):
             continue
-    # Fallback: pandas flexible parser.
+    # Fallback: pandas flexible parser. Silence the "could not infer format"
+    # UserWarning because that's exactly the case we're handling on purpose.
     try:
-        parsed_flex = pd.to_datetime(non_null, errors="coerce")
-        if parsed_flex.notna().mean() >= 0.9:
-            return pd.to_datetime(s, errors="coerce"), True
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            parsed_flex = pd.to_datetime(non_null, errors="coerce")
+            if parsed_flex.notna().mean() >= 0.9:
+                return pd.to_datetime(s, errors="coerce"), True
     except (ValueError, TypeError):
         pass
     return s, False
