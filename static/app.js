@@ -516,6 +516,16 @@ function renderChatTurn(turn, data) {
        </div>`
     : "";
 
+  // Overlay toggles shown for line charts only — most useful on time-series.
+  const overlaysToolbar = hasChart && chart_spec.kind === "line"
+    ? `<div class="chart-overlays">
+         <span class="overlay-label">Overlays:</span>
+         <button class="overlay-btn" data-overlay="movingAvg">+ Moving avg</button>
+         <button class="overlay-btn" data-overlay="peaks">+ Peaks & dips</button>
+         <button class="overlay-btn" data-overlay="cumulative">Cumulative</button>
+       </div>`
+    : "";
+
   turn.innerHTML = `
     <div class="chat-q">
       <span class="chat-q-text">${escapeHtml(originalQuestion)}</span>
@@ -524,6 +534,7 @@ function renderChatTurn(turn, data) {
     </div>
     <div class="chat-insight">${insight ? escapeHtml(insight) : "(no insight returned)"}</div>
     ${kindToolbar}
+    ${overlaysToolbar}
     <div id="${chartId}" class="chat-chart"></div>
     ${followupChips}
     <details class="chat-trace">
@@ -533,17 +544,32 @@ function renderChatTurn(turn, data) {
   `;
 
   if (hasChart) {
-    renderPlotlySpec(chartId, chart_spec);
-    // Stash the current spec on the turn so the kind buttons can re-render.
+    // Stash the current spec + overlays on the turn so kind switcher and
+    // overlay toggles can re-render without re-asking the LLM.
     turn._chartSpec = { ...chart_spec };
     turn._chartId = chartId;
+    turn._overlays = { movingAvg: false, peaks: false, cumulative: false };
+    renderPlotlySpec(chartId, turn._chartSpec, turn._overlays);
+
     turn.querySelectorAll(".kind-btn-mini").forEach((btn) =>
       btn.addEventListener("click", () => {
         const newKind = btn.dataset.kind;
         turn._chartSpec.kind = newKind;
         turn.querySelectorAll(".kind-btn-mini").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
-        renderPlotlySpec(chartId, turn._chartSpec);
+        // Overlay toolbar only makes sense on line charts — show/hide.
+        const overlaysEl = turn.querySelector(".chart-overlays");
+        if (overlaysEl) overlaysEl.hidden = newKind !== "line";
+        renderPlotlySpec(chartId, turn._chartSpec, turn._overlays);
+      })
+    );
+
+    turn.querySelectorAll(".overlay-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.overlay;
+        turn._overlays[key] = !turn._overlays[key];
+        btn.classList.toggle("active", turn._overlays[key]);
+        renderPlotlySpec(chartId, turn._chartSpec, turn._overlays);
       })
     );
   }
@@ -576,12 +602,59 @@ function _formatValue(v) {
   return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
-function renderPlotlySpec(divId, spec) {
+// Compute a centered N-point moving average. Returns null for indices where
+// the window doesn't fully fit so the overlay line has clean endpoints.
+function _movingAverage(values, windowSize) {
+  const half = Math.floor(windowSize / 2);
+  const out = [];
+  for (let i = 0; i < values.length; i++) {
+    if (i < half || i > values.length - half - 1) {
+      out.push(null);
+      continue;
+    }
+    let sum = 0;
+    for (let j = i - half; j <= i + half; j++) sum += values[j];
+    out.push(sum / windowSize);
+  }
+  return out;
+}
+
+// Pick a sensible MA window based on series length.
+// Daily data of ~700 points -> 30-day window. Short series -> ~5.
+function _maWindow(n) {
+  if (n < 30) return Math.max(3, Math.floor(n / 5));
+  if (n < 120) return 7;
+  if (n < 365) return 14;
+  return 30;
+}
+
+// Indices of the top/bottom N values, dedup.
+function _peakDipIndices(values, n) {
+  const ranked = [...values.keys()].sort((a, b) => values[b] - values[a]);
+  const peaks = ranked.slice(0, n);
+  const dips = ranked.slice(-n).reverse();
+  return { peaks, dips };
+}
+
+function renderPlotlySpec(divId, spec, overlays = {}) {
   const data = spec.data;
   const xs = data.map((r) => r[spec.x]);
-  const ys = data.map((r) => r[spec.y]);
+  let ys = data.map((r) => r[spec.y]);
+
+  // Cumulative toggle: replace the y series with running totals.
+  // Only meaningful for ordered series (line/bar over time or category).
+  if (overlays.cumulative && (spec.kind === "line" || spec.kind === "bar")) {
+    let acc = 0;
+    ys = ys.map((v) => {
+      const n = typeof v === "number" && Number.isFinite(v) ? v : 0;
+      acc += n;
+      return acc;
+    });
+  }
+
   let traces;
   let extraLayout = {};
+  const annotations = [];
 
   switch (spec.kind) {
     case "bar": {
@@ -667,6 +740,63 @@ function renderPlotlySpec(divId, spec) {
         xaxis,
         margin: { l: 60, r: 30, t: xLooksLikeDates ? 60 : 40, b: xLooksLikeDates ? 40 : 60 },
       };
+
+      // --- Overlays for line charts ---
+      if (overlays.movingAvg && ys.length >= 5) {
+        const win = _maWindow(ys.length);
+        const ma = _movingAverage(ys, win);
+        traces.push({
+          type: "scatter",
+          mode: "lines",
+          x: xs,
+          y: ma,
+          line: { color: "#fbbf24", width: 2.5, dash: "solid" },
+          name: `${win}-pt moving avg`,
+          hovertemplate: `${win}-pt MA<br>%{y:,.2f}<extra></extra>`,
+          showlegend: true,
+        });
+        extraLayout.showlegend = true;
+        extraLayout.legend = {
+          font: { color: "#e2e8f0", size: 11 },
+          bgcolor: "rgba(15,23,42,0.6)",
+          orientation: "h",
+          y: -0.18,
+        };
+      }
+
+      if (overlays.peaks && ys.length >= 6) {
+        const { peaks, dips } = _peakDipIndices(ys, 3);
+        peaks.forEach((i) =>
+          annotations.push({
+            x: xs[i],
+            y: ys[i],
+            text: `▲ ${_formatValue(ys[i])}`,
+            showarrow: true,
+            arrowhead: 3,
+            arrowcolor: "#34d399",
+            ax: 0,
+            ay: -28,
+            bgcolor: "rgba(52,211,153,0.25)",
+            bordercolor: "#34d399",
+            font: { color: "#e2e8f0", size: 10 },
+          })
+        );
+        dips.forEach((i) =>
+          annotations.push({
+            x: xs[i],
+            y: ys[i],
+            text: `▼ ${_formatValue(ys[i])}`,
+            showarrow: true,
+            arrowhead: 3,
+            arrowcolor: "#f87171",
+            ax: 0,
+            ay: 28,
+            bgcolor: "rgba(248,113,113,0.25)",
+            bordercolor: "#f87171",
+            font: { color: "#e2e8f0", size: 10 },
+          })
+        );
+      }
       break;
     }
     case "scatter":
@@ -731,14 +861,20 @@ function renderPlotlySpec(divId, spec) {
   const isTimeSeriesLine =
     spec.kind === "line" && extraLayout.xaxis && extraLayout.xaxis.type === "date";
 
+  const title = overlays.cumulative ? `${spec.title} (cumulative)` : spec.title;
+
   Plotly.newPlot(
     divId,
     traces,
     {
       ...PLOTLY_LAYOUT,
-      title: { text: spec.title, font: { color: "#e2e8f0", size: 14 } },
+      title: { text: title, font: { color: "#e2e8f0", size: 14 } },
       height: isTimeSeriesLine ? 420 : 340,
       ...extraLayout,
+      ...(annotations.length ? { annotations: [
+        ...(extraLayout.annotations || []),
+        ...annotations,
+      ] } : {}),
     },
     { displayModeBar: false, responsive: true }
   );
