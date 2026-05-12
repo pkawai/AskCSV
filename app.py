@@ -12,6 +12,7 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 
 from src import (
+    builder,
     chart_suggester,
     cleaner,
     groq_client,
@@ -123,6 +124,52 @@ def create_app() -> Flask:
             return report_builder.render_report_html(session_id)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 404
+
+    @app.route("/build_chart", methods=["POST"])
+    def build_chart_route():
+        """Manual chart builder — Tableau/Power-BI-style drop-zone path.
+
+        Body: {session_id, kind, x, y?, color?, agg?, title?, save?}
+        - save=true persists the chart into nlq_cache so it shows up in /report.
+        """
+        payload = request.get_json(silent=True) or {}
+        try:
+            result = builder.build(
+                session_id=payload.get("session_id"),
+                kind=payload.get("kind", ""),
+                x=payload.get("x"),
+                y=payload.get("y"),
+                color=payload.get("color"),
+                agg=payload.get("agg"),
+                title=payload.get("title"),
+            )
+        except builder.BuilderError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+
+        # Optional persistence so the export-report path picks it up.
+        if payload.get("save"):
+            session_id = payload.get("session_id")
+            label = (
+                payload.get("title")
+                or f"Manual: {result['chart_spec'].get('kind')} of "
+                f"{result['chart_spec'].get('y')} by {result['chart_spec'].get('x')}"
+            )
+            storage.save_cached_nlq(
+                session_id,
+                f"[builder] {label}",
+                {
+                    "chart_spec": result["chart_spec"],
+                    "insight": "(built manually)",
+                    "tool_trace": result["tool_trace"],
+                    "from_cache": False,
+                    "latency_s": 0.0,
+                    "source": "manual",
+                },
+            )
+            result["saved"] = True
+        return jsonify(result)
 
     @app.route("/usage")
     def usage_route():

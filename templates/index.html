@@ -56,6 +56,73 @@
       <div id="suggested-grid" class="suggested-grid"></div>
     </section>
 
+    <section id="builder-section" class="card" hidden>
+      <div class="card-head">
+        <h2>Build a chart</h2>
+        <span class="builder-hint">Drag a column onto a shelf. The chart redraws automatically.</span>
+      </div>
+      <div class="builder">
+        <aside class="builder-fields">
+          <h3>Columns</h3>
+          <div class="field-group" data-kind="numeric">
+            <div class="field-group-label">Numeric</div>
+            <div class="field-list" id="fields-numeric"></div>
+          </div>
+          <div class="field-group" data-kind="datetime">
+            <div class="field-group-label">Datetime</div>
+            <div class="field-list" id="fields-datetime"></div>
+          </div>
+          <div class="field-group" data-kind="categorical">
+            <div class="field-group-label">Categorical</div>
+            <div class="field-list" id="fields-categorical"></div>
+          </div>
+        </aside>
+
+        <div class="builder-canvas">
+          <div class="builder-kinds" id="builder-kinds">
+            <button class="kind-btn active" data-kind="bar">Bar</button>
+            <button class="kind-btn" data-kind="line">Line</button>
+            <button class="kind-btn" data-kind="scatter">Scatter</button>
+            <button class="kind-btn" data-kind="hist">Histogram</button>
+            <button class="kind-btn" data-kind="pie">Pie</button>
+            <button class="kind-btn" data-kind="box">Box</button>
+          </div>
+          <div class="shelves">
+            <div class="shelf" data-shelf="x">
+              <span class="shelf-label">X axis</span>
+              <div class="shelf-drop" id="shelf-x"></div>
+            </div>
+            <div class="shelf" data-shelf="y">
+              <span class="shelf-label">Y axis</span>
+              <div class="shelf-drop" id="shelf-y"></div>
+            </div>
+            <div class="shelf" data-shelf="color">
+              <span class="shelf-label">Color</span>
+              <div class="shelf-drop" id="shelf-color"></div>
+            </div>
+            <div class="shelf shelf-agg">
+              <span class="shelf-label">Aggregation</span>
+              <select id="builder-agg">
+                <option value="sum">Sum</option>
+                <option value="mean">Mean</option>
+                <option value="median">Median</option>
+                <option value="min">Min</option>
+                <option value="max">Max</option>
+                <option value="count">Count</option>
+                <option value="nunique">Unique count</option>
+              </select>
+            </div>
+          </div>
+          <div class="builder-actions">
+            <button id="builder-clear" type="button">Clear</button>
+            <button id="builder-save" type="button" disabled>Save to report</button>
+            <span id="builder-status" class="builder-status"></span>
+          </div>
+          <div id="builder-chart" class="builder-chart"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="chat-section" class="card" hidden>
       <div class="card-head">
         <h2>Ask the analyst</h2>
