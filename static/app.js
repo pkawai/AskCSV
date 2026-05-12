@@ -89,6 +89,7 @@ async function uploadAndRender(file) {
     renderAll(data, profData);
     $("#chat-section").hidden = false;
     $("#export-link").href = `/report/${currentSessionId}`;
+    initBuilder(profData.profile);
     loadAiSuggestions(currentSessionId);
   } catch (err) {
     showStatus(`Error: ${err.message}`, true);
@@ -385,4 +386,172 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// ---------- Chart builder (Tableau / Power BI style) ----------
+
+const builderState = { kind: "bar", x: null, y: null, color: null, agg: "sum" };
+let builderTimer = null;
+
+function initBuilder(profile) {
+  $("#builder-section").hidden = false;
+  populateFieldPalette(profile);
+  bindBuilderEvents();
+  resetShelves();
+}
+
+function populateFieldPalette(profile) {
+  const buckets = { numeric: [], datetime: [], categorical: [] };
+  profile.columns.forEach((c) => {
+    if (c.name.endsWith("_is_outlier")) return;
+    const bucket = buckets[c.kind] || buckets.categorical;
+    bucket.push(c);
+  });
+  for (const kind of ["numeric", "datetime", "categorical"]) {
+    const el = document.getElementById(`fields-${kind}`);
+    el.innerHTML = buckets[kind]
+      .map(
+        (c) =>
+          `<div class="field-chip" draggable="true"
+                 data-name="${escapeHtml(c.name)}" data-kind="${kind}">
+             ${escapeHtml(c.name)}
+           </div>`
+      )
+      .join("") || '<div class="field-empty">none</div>';
+    el.querySelectorAll(".field-chip").forEach(bindFieldDrag);
+  }
+}
+
+function bindFieldDrag(chip) {
+  chip.addEventListener("dragstart", (e) => {
+    e.dataTransfer.setData("text/plain", chip.dataset.name);
+    e.dataTransfer.setData("text/kind", chip.dataset.kind);
+    chip.classList.add("dragging");
+  });
+  chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+}
+
+function bindBuilderEvents() {
+  document.querySelectorAll(".kind-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".kind-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      builderState.kind = btn.dataset.kind;
+      scheduleBuild();
+    })
+  );
+
+  document.querySelectorAll(".shelf-drop").forEach((shelf) => {
+    shelf.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      shelf.classList.add("drop-hover");
+    });
+    shelf.addEventListener("dragleave", () => shelf.classList.remove("drop-hover"));
+    shelf.addEventListener("drop", (e) => {
+      e.preventDefault();
+      shelf.classList.remove("drop-hover");
+      const name = e.dataTransfer.getData("text/plain");
+      const kind = e.dataTransfer.getData("text/kind");
+      if (!name) return;
+      const shelfKey = shelf.parentElement.dataset.shelf;
+      builderState[shelfKey] = name;
+      renderShelfPill(shelf, name, kind, shelfKey);
+      scheduleBuild();
+    });
+  });
+
+  $("#builder-agg").addEventListener("change", (e) => {
+    builderState.agg = e.target.value;
+    scheduleBuild();
+  });
+
+  $("#builder-clear").addEventListener("click", () => {
+    builderState.x = builderState.y = builderState.color = null;
+    resetShelves();
+    $("#builder-chart").innerHTML = "";
+    $("#builder-status").textContent = "";
+    $("#builder-save").disabled = true;
+  });
+
+  $("#builder-save").addEventListener("click", () => saveBuiltChart());
+}
+
+function resetShelves() {
+  ["x", "y", "color"].forEach((key) => {
+    const drop = document.getElementById(`shelf-${key}`);
+    drop.innerHTML = '<span class="shelf-placeholder">Drop a column here</span>';
+  });
+}
+
+function renderShelfPill(shelfEl, name, kind, shelfKey) {
+  shelfEl.innerHTML = `
+    <span class="shelf-pill shelf-pill-${kind}">
+      ${escapeHtml(name)}
+      <button class="shelf-pill-x" data-shelf="${shelfKey}" aria-label="remove">×</button>
+    </span>`;
+  shelfEl.querySelector(".shelf-pill-x").addEventListener("click", () => {
+    builderState[shelfKey] = null;
+    shelfEl.innerHTML = '<span class="shelf-placeholder">Drop a column here</span>';
+    scheduleBuild();
+  });
+}
+
+function scheduleBuild() {
+  clearTimeout(builderTimer);
+  builderTimer = setTimeout(buildChart, 150);
+}
+
+async function buildChart() {
+  if (!currentSessionId) return;
+  const { kind, x, y, color, agg } = builderState;
+  // Need at least X for any chart, and Y for non-hist/pie.
+  if (!x) {
+    $("#builder-status").textContent = "Drop a column on X to start.";
+    $("#builder-save").disabled = true;
+    return;
+  }
+  if (!y && !["hist", "pie"].includes(kind)) {
+    $("#builder-status").textContent = "Drop a column on Y.";
+    $("#builder-save").disabled = true;
+    return;
+  }
+  $("#builder-status").innerHTML = '<span class="spinner"></span> Building…';
+  try {
+    const res = await fetch("/build_chart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        kind, x, y, color, agg,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Build failed");
+    renderPlotlySpec("builder-chart", data.chart_spec);
+    $("#builder-status").textContent = "Ready.";
+    $("#builder-save").disabled = false;
+  } catch (err) {
+    $("#builder-status").textContent = `Error: ${err.message}`;
+    $("#builder-save").disabled = true;
+  }
+}
+
+async function saveBuiltChart() {
+  const { kind, x, y, color, agg } = builderState;
+  try {
+    const res = await fetch("/build_chart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        kind, x, y, color, agg,
+        save: true,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Save failed");
+    toast("Chart saved to report.");
+  } catch (err) {
+    toast(`Save failed: ${err.message}`, "error");
+  }
 }
