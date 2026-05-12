@@ -47,3 +47,32 @@ def test_session_id_is_unique():
     df = pd.DataFrame({"x": [1]})
     ids = {storage.create_session_from_dataframe(df, "a.csv", "utf-8").session_id for _ in range(5)}
     assert len(ids) == 5
+
+
+# ---------- NLQ cache ----------
+
+
+def test_nlq_cache_miss_then_hit():
+    df = pd.DataFrame({"x": [1, 2, 3]})
+    sid = storage.create_session_from_dataframe(df, "x.csv", "utf-8").session_id
+    assert storage.get_cached_nlq(sid, "hello") is None
+    storage.save_cached_nlq(sid, "hello", {"insight": "world", "latency_s": 0.1})
+    cached = storage.get_cached_nlq(sid, "hello")
+    assert cached["insight"] == "world"
+
+
+def test_nlq_cache_normalizes_question():
+    df = pd.DataFrame({"x": [1]})
+    sid = storage.create_session_from_dataframe(df, "x.csv", "utf-8").session_id
+    storage.save_cached_nlq(sid, "Show Revenue By Region", {"v": 1})
+    # Case + whitespace variants should all hit the same row.
+    assert storage.get_cached_nlq(sid, "show revenue by region")["v"] == 1
+    assert storage.get_cached_nlq(sid, "  SHOW   revenue   BY region")["v"] == 1
+
+
+def test_nlq_cache_scoped_per_session():
+    df = pd.DataFrame({"x": [1]})
+    a = storage.create_session_from_dataframe(df, "a.csv", "utf-8").session_id
+    b = storage.create_session_from_dataframe(df, "b.csv", "utf-8").session_id
+    storage.save_cached_nlq(a, "q", {"v": "a"})
+    assert storage.get_cached_nlq(b, "q") is None

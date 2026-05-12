@@ -11,7 +11,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from src import chart_suggester, cleaner, ingest, profiler, storage
+from src import chart_suggester, cleaner, ingest, nlq_engine, profiler, storage
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -60,6 +60,22 @@ def create_app() -> Flask:
                 "cleaning_report": report.to_dict(),
             }
         )
+
+    @app.route("/ask", methods=["POST"])
+    def ask_route():
+        """Run a single NLQ question against a session's dataframe."""
+        payload = request.get_json(silent=True) or {}
+        session_id = payload.get("session_id")
+        question = (payload.get("question") or "").strip()
+        if not session_id or not question:
+            return jsonify({"error": "session_id and question are required"}), 400
+        try:
+            result = nlq_engine.ask(session_id, question)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 404
+        except Exception as exc:  # noqa: BLE001 - surface to client
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+        return jsonify(result)
 
     @app.route("/profile/<session_id>")
     def profile_route(session_id: str):

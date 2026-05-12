@@ -8,11 +8,12 @@ Parquet files live in data/sessions/<session_id>.parquet (gitignored).
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -114,3 +115,43 @@ def create_session_from_dataframe(
     )
     save_session(session, df)
     return session
+
+
+# ---------------------------------------------------------------------------
+# NLQ response cache
+# ---------------------------------------------------------------------------
+
+
+def _normalize_question(q: str) -> str:
+    """Lowercase + collapse whitespace so 'X by Y' and 'x  by  y' share a cache row."""
+    return " ".join(q.lower().split())
+
+
+def get_cached_nlq(session_id: str, question: str) -> Optional[dict[str, Any]]:
+    """Return the cached NLQ result dict, or None if no hit."""
+    key = _normalize_question(question)
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT response_json FROM nlq_cache "
+            "WHERE session_id = ? AND question_normalized = ?",
+            (session_id, key),
+        ).fetchone()
+    if row is None:
+        return None
+    return json.loads(row[0])
+
+
+def save_cached_nlq(session_id: str, question: str, response: dict[str, Any]) -> None:
+    """Persist an NLQ response for later cache hits."""
+    key = _normalize_question(question)
+    payload = json.dumps(response, default=str)
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO nlq_cache VALUES (?, ?, ?, ?)",
+            (
+                session_id,
+                key,
+                payload,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )

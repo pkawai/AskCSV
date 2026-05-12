@@ -251,3 +251,111 @@ main {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+/* Chat / NLQ */
+
+.chat-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chat-form input {
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+.chat-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chat-form button {
+  padding: 0.6rem 1.2rem;
+  background: var(--accent);
+  color: #0f172a;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-form button:hover { background: #7dd3fc; }
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-turn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.chat-q {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-loading {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-insight {
+  color: var(--fg);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.chat-chart {
+  margin: 0.5rem 0;
+}
+
+.chat-error {
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+  padding-left: 0.75rem;
+}
+
+.chat-trace {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.chat-trace summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.trace-line {
+  font-family: ui-monospace, "SF Mono", Monaco, monospace;
+  margin: 0.25rem 0;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.2);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.badge-cache {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+}
