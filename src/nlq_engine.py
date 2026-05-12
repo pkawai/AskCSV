@@ -15,7 +15,7 @@ from typing import Any
 
 import pandas as pd
 
-from src import groq_client, prompts, storage, tools
+from src import llm_client, prompts, storage, tools
 
 MAX_LOOP_ITERATIONS = 8
 
@@ -74,7 +74,7 @@ def ask(session_id: str, question: str, *, use_cache: bool = True) -> dict[str, 
 
     schema = build_schema_summary(df)
     state = tools.ToolState(df=df.copy())
-    client = groq_client.get_client()
+    client = llm_client.get_client()
 
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": prompts.NLQ_SYSTEM_PROMPT},

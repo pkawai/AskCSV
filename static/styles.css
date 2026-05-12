@@ -51,6 +51,46 @@ header h1 {
   gap: 1rem;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.provider-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px 10px 4px 12px;
+  font-size: 0.8rem;
+}
+
+.provider-switcher-label {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+}
+
+#provider-select {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+#provider-select:focus { outline: 1px solid var(--accent); border-radius: 4px; }
+#provider-select option { background: var(--card); color: var(--fg); }
+
 .usage-chip {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border);

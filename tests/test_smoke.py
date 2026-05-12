@@ -28,7 +28,7 @@ def test_health(client):
 
 def test_usage_returns_zeros_when_no_key(client, monkeypatch):
     # Force the lazy singleton path through a missing-key branch.
-    from src import groq_client as gc
+    from src import llm_client as gc
 
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     gc.reset_client_for_tests()
