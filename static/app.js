@@ -399,34 +399,144 @@ function renderChatTurn(turn, data) {
   }
 }
 
+// Categorical palette used for bar / pie / multi-series charts.
+// Tuned for the dark theme: vibrant but readable side-by-side.
+const CATEGORICAL_COLORS = [
+  "#38bdf8", "#818cf8", "#34d399", "#fbbf24",
+  "#f472b6", "#22d3ee", "#a78bfa", "#fb923c",
+  "#84cc16", "#fb7185",
+];
+
+function _formatValue(v) {
+  if (typeof v !== "number" || !Number.isFinite(v)) return String(v);
+  if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  if (Math.abs(v) >= 1) return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return v.toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+
 function renderPlotlySpec(divId, spec) {
   const data = spec.data;
   const xs = data.map((r) => r[spec.x]);
   const ys = data.map((r) => r[spec.y]);
   let traces;
+  let extraLayout = {};
+
   switch (spec.kind) {
-    case "bar":
-      traces = [{ type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+    case "bar": {
+      // One color per bar so categories are distinguishable at a glance.
+      const barColors = xs.map((_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]);
+      // Value labels on top of each bar — sized so they don't crash into one another.
+      const labels = ys.map(_formatValue);
+      traces = [
+        {
+          type: "bar",
+          x: xs,
+          y: ys,
+          marker: {
+            color: barColors,
+            line: { color: "rgba(255,255,255,0.08)", width: 1 },
+          },
+          text: labels,
+          textposition: "outside",
+          textfont: { color: "#e2e8f0", size: 11 },
+          cliponaxis: false,
+          hovertemplate: "<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
+        },
+      ];
+      // Headroom above the tallest bar so 'outside' labels don't get clipped.
+      const maxY = Math.max(...ys.filter((v) => Number.isFinite(v)), 0);
+      extraLayout = {
+        yaxis: { gridcolor: "rgba(148,163,184,0.15)", zerolinecolor: "rgba(148,163,184,0.3)", range: [0, maxY * 1.15] },
+        xaxis: { gridcolor: "rgba(148,163,184,0.05)" },
+        showlegend: false,
+        bargap: 0.25,
+      };
       break;
+    }
     case "line":
-      traces = [{ type: "scatter", mode: "lines+markers", x: xs, y: ys, line: { color: "#38bdf8" } }];
+      traces = [
+        {
+          type: "scatter",
+          mode: "lines+markers",
+          x: xs,
+          y: ys,
+          line: { color: "#38bdf8", width: 2.5 },
+          marker: { color: "#38bdf8", size: 8 },
+          hovertemplate: "<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
+        },
+      ];
+      extraLayout = {
+        yaxis: { gridcolor: "rgba(148,163,184,0.15)" },
+        xaxis: { gridcolor: "rgba(148,163,184,0.05)" },
+      };
       break;
     case "scatter":
-      traces = [{ type: "scatter", mode: "markers", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+      traces = [
+        {
+          type: "scatter",
+          mode: "markers",
+          x: xs,
+          y: ys,
+          marker: { color: "#38bdf8", size: 10, opacity: 0.75,
+                    line: { color: "rgba(255,255,255,0.15)", width: 1 } },
+          hovertemplate: "%{x}, %{y}<extra></extra>",
+        },
+      ];
+      extraLayout = {
+        yaxis: { gridcolor: "rgba(148,163,184,0.15)" },
+        xaxis: { gridcolor: "rgba(148,163,184,0.15)" },
+      };
       break;
     case "hist":
-      traces = [{ type: "histogram", x: xs, marker: { color: "#38bdf8" } }];
+      traces = [
+        {
+          type: "histogram",
+          x: xs,
+          marker: {
+            color: "#38bdf8",
+            line: { color: "rgba(255,255,255,0.1)", width: 1 },
+          },
+          hovertemplate: "%{x}<br>count: %{y}<extra></extra>",
+        },
+      ];
+      extraLayout = {
+        yaxis: { gridcolor: "rgba(148,163,184,0.15)", title: { text: "count" } },
+        xaxis: { gridcolor: "rgba(148,163,184,0.05)" },
+        bargap: 0.05,
+      };
       break;
-    case "pie":
-      traces = [{ type: "pie", labels: xs, values: ys }];
+    case "pie": {
+      const colors = xs.map((_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]);
+      traces = [
+        {
+          type: "pie",
+          labels: xs,
+          values: ys,
+          hole: 0.4,                    // donut style — modern + value in the middle is easier to read
+          marker: { colors, line: { color: "#1e293b", width: 2 } },
+          textinfo: "label+percent",
+          textfont: { color: "#0f172a", size: 12 },
+          hovertemplate: "<b>%{label}</b><br>%{value:,.0f} (%{percent})<extra></extra>",
+        },
+      ];
+      extraLayout = { showlegend: true, legend: { font: { color: "#e2e8f0" } } };
       break;
-    default:
-      traces = [{ type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+    }
+    default: {
+      const barColors = xs.map((_, i) => CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]);
+      traces = [{ type: "bar", x: xs, y: ys, marker: { color: barColors } }];
+    }
   }
+
   Plotly.newPlot(
     divId,
     traces,
-    { ...PLOTLY_LAYOUT, title: { text: spec.title }, height: 320 },
+    {
+      ...PLOTLY_LAYOUT,
+      title: { text: spec.title, font: { color: "#e2e8f0", size: 14 } },
+      height: 340,
+      ...extraLayout,
+    },
     { displayModeBar: false, responsive: true }
   );
 }

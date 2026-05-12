@@ -148,22 +148,53 @@
       { displayModeBar: false, responsive: true });
   }
 
-  // Per-question charts
+  const PALETTE = ["#38bdf8","#818cf8","#34d399","#fbbf24","#f472b6","#22d3ee","#a78bfa","#fb923c","#84cc16","#fb7185"];
+  const fmt = v => typeof v === "number" && Number.isFinite(v)
+    ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(v);
+
+  // Per-question charts — same palette/styling as the live app for consistency.
   QA.forEach((item, i) => {
     const spec = item.response && item.response.chart_spec;
     if (!spec || !spec.data || !spec.data.length) return;
     const xs = spec.data.map(r => r[spec.x]);
     const ys = spec.data.map(r => r[spec.y]);
-    let trace;
+    let trace, extra = {};
     switch (spec.kind) {
-      case "line": trace = { type: "scatter", mode: "lines+markers", x: xs, y: ys, line: { color: "#38bdf8" } }; break;
-      case "scatter": trace = { type: "scatter", mode: "markers", x: xs, y: ys, marker: { color: "#38bdf8" } }; break;
-      case "hist": trace = { type: "histogram", x: xs, marker: { color: "#38bdf8" } }; break;
-      case "pie": trace = { type: "pie", labels: xs, values: ys }; break;
-      default: trace = { type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } };
+      case "line":
+        trace = { type: "scatter", mode: "lines+markers", x: xs, y: ys,
+                  line: { color: "#38bdf8", width: 2.5 }, marker: { color: "#38bdf8", size: 8 } };
+        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)" } };
+        break;
+      case "scatter":
+        trace = { type: "scatter", mode: "markers", x: xs, y: ys,
+                  marker: { color: "#38bdf8", size: 10, opacity: 0.75 } };
+        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)" },
+                  xaxis: { gridcolor: "rgba(148,163,184,0.15)" } };
+        break;
+      case "hist":
+        trace = { type: "histogram", x: xs, marker: { color: "#38bdf8" } };
+        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)", title: { text: "count" } },
+                  bargap: 0.05 };
+        break;
+      case "pie": {
+        const colors = xs.map((_, k) => PALETTE[k % PALETTE.length]);
+        trace = { type: "pie", labels: xs, values: ys, hole: 0.4,
+                  marker: { colors, line: { color: "#1e293b", width: 2 } },
+                  textinfo: "label+percent" };
+        break;
+      }
+      default: {
+        const colors = xs.map((_, k) => PALETTE[k % PALETTE.length]);
+        const maxY = Math.max(...ys.filter(v => Number.isFinite(v)), 0);
+        trace = { type: "bar", x: xs, y: ys,
+                  marker: { color: colors, line: { color: "rgba(255,255,255,0.08)", width: 1 } },
+                  text: ys.map(fmt), textposition: "outside", cliponaxis: false };
+        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)", range: [0, maxY * 1.15] },
+                  bargap: 0.25, showlegend: false };
+      }
     }
     Plotly.newPlot(`qa-chart-${i}`, [trace],
-      { ...LAYOUT, title: { text: spec.title } },
+      { ...LAYOUT, title: { text: spec.title }, ...extra },
       { displayModeBar: false, responsive: true });
   });
 </script>
