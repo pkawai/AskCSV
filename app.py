@@ -5,10 +5,13 @@ skeleton + a single index route so the smoke test passes.
 """
 from __future__ import annotations
 
+import io
 import os
 from pathlib import Path
 
-from flask import Flask, render_template
+from flask import Flask, jsonify, render_template, request
+
+from src import cleaner, ingest, storage
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -29,6 +32,34 @@ def create_app() -> Flask:
     @app.route("/health")
     def health() -> dict:
         return {"status": "ok", "app": "AskCSV"}
+
+    @app.route("/upload", methods=["POST"])
+    def upload():
+        """Accept a CSV upload, ingest + clean + persist. Return session metadata."""
+        if "file" not in request.files:
+            return jsonify({"error": "No file part in request"}), 400
+        f = request.files["file"]
+        if not f.filename:
+            return jsonify({"error": "Empty filename"}), 400
+        if not f.filename.lower().endswith(".csv"):
+            return jsonify({"error": "Only .csv files are supported"}), 400
+
+        try:
+            raw = f.read()
+            df, encoding = ingest.load_csv(raw)
+            clean_df, report = cleaner.clean(df)
+            session = storage.create_session_from_dataframe(
+                clean_df, filename=f.filename, encoding=encoding
+            )
+        except Exception as exc:  # noqa: BLE001 - surface to client
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 400
+
+        return jsonify(
+            {
+                "session": session.to_dict(),
+                "cleaning_report": report.to_dict(),
+            }
+        )
 
     return app
 
