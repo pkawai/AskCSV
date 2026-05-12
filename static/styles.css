@@ -314,11 +314,15 @@ header h1 {
   background: transparent;
   border: none;
   color: inherit;
-  font-size: 1rem;
   cursor: pointer;
   padding: 0 2px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.8;
 }
+
+.shelf-pill-x:hover { opacity: 1; }
+.shelf-pill-x svg { display: block; }
 
 .shelf-agg select {
   width: 100%;
@@ -494,52 +498,123 @@ main {
 
 .columns-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 0.75rem;
 }
 
 .column-card {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.15s;
 }
 
-.column-card header {
+.column-card:hover { border-color: var(--border); }
+
+.col-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
-  padding: 0;
-  border: none;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .col-name {
   font-weight: 600;
   color: var(--fg);
+  font-family: ui-monospace, "SF Mono", Monaco, monospace;
+  font-size: 0.9rem;
 }
 
 .col-kind {
   font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.kind-numeric    { background: rgba(56,189,248,0.2); color: var(--accent); }
-.kind-datetime   { background: rgba(129,140,248,0.2); color: var(--accent-2); }
-.kind-categorical{ background: rgba(52,211,153,0.2); color: var(--success); }
-.kind-boolean    { background: rgba(248,113,113,0.2); color: var(--danger); }
+.kind-numeric    { background: rgba(56,189,248,0.15); color: var(--accent); border: 1px solid rgba(56,189,248,0.25); }
+.kind-datetime   { background: rgba(129,140,248,0.15); color: var(--accent-2); border: 1px solid rgba(129,140,248,0.25); }
+.kind-categorical{ background: rgba(52,211,153,0.15); color: var(--success); border: 1px solid rgba(52,211,153,0.25); }
+.kind-boolean    { background: rgba(248,113,113,0.15); color: var(--danger); border: 1px solid rgba(248,113,113,0.25); }
 
-.col-stats, .col-meta {
+.col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.col-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
   font-size: 0.85rem;
-  color: var(--muted);
 }
 
-.col-meta {
+.col-row-k {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.col-row-v {
+  color: var(--fg);
+  font-weight: 500;
+  text-align: right;
+}
+
+.col-row-ok {
+  color: var(--success);
+  font-size: 0.8rem;
   margin-top: 0.25rem;
-  font-size: 0.75rem;
+}
+
+.col-row-warn {
+  color: var(--warning, #fbbf24);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.col-eg {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--fg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  font-size: 0.8rem;
+}
+
+.col-examples {
+  flex-wrap: wrap;
+}
+
+/* Friendly empty-state used when no columns have missing values. */
+.empty-good {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 8px;
+  color: var(--success);
+}
+
+.empty-good .empty-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.empty-good strong { color: var(--fg); }
+
+.empty-good p {
+  margin: 0.1rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* Suggested charts */
@@ -657,12 +732,15 @@ main {
   width: 24px;
   height: 24px;
   border-radius: 4px;
-  font-size: 1.1rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   padding: 0;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
+
+.chat-delete svg { display: block; }
 
 .chat-delete:hover {
   color: var(--danger);
