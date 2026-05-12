@@ -261,6 +261,10 @@ function renderSuggestedCharts(suggestions) {
 
 // ---------- Chat / NLQ ----------
 
+$("#clear-thread").addEventListener("click", () => {
+  $("#chat-thread").innerHTML = "";
+});
+
 $("#chat-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const input = $("#chat-input");
@@ -282,8 +286,13 @@ async function askQuestion(question) {
     if (!res.ok) throw new Error(data.error || "Question failed");
     renderChatTurn(turn, data);
   } catch (err) {
-    turn.innerHTML = `<div class="chat-q">${escapeHtml(question)}</div>
+    turn.innerHTML = `
+      <div class="chat-q">
+        <span class="chat-q-text">${escapeHtml(question)}</span>
+        <button class="chat-delete" aria-label="Remove this answer">×</button>
+      </div>
       <div class="chat-error">Error: ${escapeHtml(err.message)}</div>`;
+    turn.querySelector(".chat-delete").addEventListener("click", () => turn.remove());
     toast(err.message, "error");
   } finally {
     refreshUsageChip();
@@ -299,6 +308,10 @@ function appendChatTurn(question, loading = false) {
   thread.prepend(turn);
   return turn;
 }
+
+// Chart kinds offered as in-place re-render buttons on every chat turn.
+// These map 1:1 onto Plotly traces we already know how to render.
+const CHART_KIND_OPTIONS = ["bar", "line", "scatter", "hist", "pie"];
 
 function renderChatTurn(turn, data) {
   const { chart_spec, insight, tool_trace, from_cache, latency_s, followups } = data;
@@ -328,9 +341,27 @@ function renderChatTurn(turn, data) {
        </div>`
     : "";
 
+  const originalQuestion = turn.querySelector(".chat-q").textContent;
+  const hasChart = chart_spec && chart_spec.data && chart_spec.data.length;
+
+  const kindToolbar = hasChart
+    ? `<div class="chart-kinds">
+         ${CHART_KIND_OPTIONS.map(
+           (k) =>
+             `<button class="kind-btn-mini ${k === chart_spec.kind ? "active" : ""}"
+                      data-kind="${k}">${k}</button>`
+         ).join("")}
+       </div>`
+    : "";
+
   turn.innerHTML = `
-    <div class="chat-q">${escapeHtml(turn.querySelector(".chat-q").textContent)} ${cacheBadge}</div>
+    <div class="chat-q">
+      <span class="chat-q-text">${escapeHtml(originalQuestion)}</span>
+      ${cacheBadge}
+      <button class="chat-delete" aria-label="Remove this answer">×</button>
+    </div>
     <div class="chat-insight">${insight ? escapeHtml(insight) : "(no insight returned)"}</div>
+    ${kindToolbar}
     <div id="${chartId}" class="chat-chart"></div>
     ${followupChips}
     <details class="chat-trace">
@@ -339,12 +370,33 @@ function renderChatTurn(turn, data) {
     </details>
   `;
 
-  if (chart_spec && chart_spec.data && chart_spec.data.length) {
+  if (hasChart) {
     renderPlotlySpec(chartId, chart_spec);
+    // Stash the current spec on the turn so the kind buttons can re-render.
+    turn._chartSpec = { ...chart_spec };
+    turn._chartId = chartId;
+    turn.querySelectorAll(".kind-btn-mini").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const newKind = btn.dataset.kind;
+        turn._chartSpec.kind = newKind;
+        turn.querySelectorAll(".kind-btn-mini").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderPlotlySpec(chartId, turn._chartSpec);
+      })
+    );
   }
+
   turn.querySelectorAll(".chip-followup").forEach((btn) =>
     btn.addEventListener("click", () => askQuestion(btn.dataset.q))
   );
+
+  const deleteBtn = turn.querySelector(".chat-delete");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
+      turn.classList.add("chat-turn-removing");
+      setTimeout(() => turn.remove(), 200);
+    });
+  }
 }
 
 function renderPlotlySpec(divId, spec) {
