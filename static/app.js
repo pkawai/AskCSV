@@ -615,23 +615,60 @@ function renderPlotlySpec(divId, spec) {
       };
       break;
     }
-    case "line":
+    case "line": {
+      // Detect ISO-ish dates so Plotly auto-formats the x axis as time
+      // (continuous tick spacing like 'Jan 2024', 'Apr 2024', ...) instead
+      // of cramming one categorical tick per data point.
+      const xLooksLikeDates =
+        xs.length > 0 &&
+        xs.every((v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v));
+      const dense = xs.length > 30;
       traces = [
         {
           type: "scatter",
-          mode: "lines+markers",
+          mode: dense ? "lines" : "lines+markers",
           x: xs,
           y: ys,
-          line: { color: "#38bdf8", width: 2.5 },
-          marker: { color: "#38bdf8", size: 8 },
-          hovertemplate: "<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
+          line: { color: "#38bdf8", width: dense ? 1.8 : 2.5, shape: "linear" },
+          marker: { color: "#38bdf8", size: dense ? 0 : 8 },
+          hovertemplate: xLooksLikeDates
+            ? "<b>%{x|%b %d, %Y}</b><br>%{y:,.2f}<extra></extra>"
+            : "<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
         },
       ];
+      const xaxis = {
+        gridcolor: "rgba(148,163,184,0.05)",
+        automargin: true,
+      };
+      if (xLooksLikeDates) {
+        xaxis.type = "date";
+        // Quick-zoom buttons above the chart — really useful for multi-year data.
+        xaxis.rangeselector = {
+          buttons: [
+            { count: 1, label: "1m", step: "month", stepmode: "backward" },
+            { count: 3, label: "3m", step: "month", stepmode: "backward" },
+            { count: 6, label: "6m", step: "month", stepmode: "backward" },
+            { count: 1, label: "1y", step: "year", stepmode: "backward" },
+            { step: "all", label: "All" },
+          ],
+          bgcolor: "rgba(15,23,42,0.8)",
+          activecolor: "#38bdf8",
+          bordercolor: "rgba(148,163,184,0.2)",
+          font: { color: "#e2e8f0", size: 11 },
+          y: 1.15,
+          yanchor: "top",
+        };
+        // Mini overview slider at the bottom so users can pan/zoom into a range.
+        xaxis.rangeslider = { visible: true, thickness: 0.06,
+                              bgcolor: "rgba(15,23,42,0.6)", bordercolor: "rgba(148,163,184,0.2)" };
+      }
       extraLayout = {
         yaxis: { gridcolor: "rgba(148,163,184,0.15)" },
-        xaxis: { gridcolor: "rgba(148,163,184,0.05)" },
+        xaxis,
+        margin: { l: 60, r: 30, t: xLooksLikeDates ? 60 : 40, b: xLooksLikeDates ? 40 : 60 },
       };
       break;
+    }
     case "scatter":
       traces = [
         {
@@ -690,13 +727,17 @@ function renderPlotlySpec(divId, spec) {
     }
   }
 
+  // Time-series gets extra height for the rangeselector buttons + rangeslider.
+  const isTimeSeriesLine =
+    spec.kind === "line" && extraLayout.xaxis && extraLayout.xaxis.type === "date";
+
   Plotly.newPlot(
     divId,
     traces,
     {
       ...PLOTLY_LAYOUT,
       title: { text: spec.title, font: { color: "#e2e8f0", size: 14 } },
-      height: 340,
+      height: isTimeSeriesLine ? 420 : 340,
       ...extraLayout,
     },
     { displayModeBar: false, responsive: true }
