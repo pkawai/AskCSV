@@ -4,6 +4,8 @@ const $ = (sel) => document.querySelector(sel);
 const fileInput = $("#csv-file");
 const uploadStatus = $("#upload-status");
 
+let currentSessionId = null;
+
 const PLOTLY_LAYOUT = {
   paper_bgcolor: "#1e293b",
   plot_bgcolor: "#1e293b",
@@ -44,11 +46,13 @@ async function uploadAndRender(file) {
     const res = await fetch("/upload", { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
-    showStatus(`Uploaded ${file.name} → session ${data.session.session_id}`);
-    const profRes = await fetch(`/profile/${data.session.session_id}`);
+    currentSessionId = data.session.session_id;
+    showStatus(`Uploaded ${file.name} → session ${currentSessionId}`);
+    const profRes = await fetch(`/profile/${currentSessionId}`);
     const profData = await profRes.json();
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
+    $("#chat-section").hidden = false;
   } catch (err) {
     showStatus(`Error: ${err.message}`, true);
   }
@@ -181,4 +185,114 @@ function renderSuggestedCharts(suggestions) {
     `
     )
     .join("");
+}
+
+// ---------- Chat / NLQ ----------
+
+$("#chat-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = $("#chat-input");
+  const question = input.value.trim();
+  if (!question || !currentSessionId) return;
+  input.value = "";
+  await askQuestion(question);
+});
+
+async function askQuestion(question) {
+  const turn = appendChatTurn(question, /* loading */ true);
+  try {
+    const res = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: currentSessionId, question }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Question failed");
+    renderChatTurn(turn, data);
+  } catch (err) {
+    turn.innerHTML = `<div class="chat-q">${escapeHtml(question)}</div>
+      <div class="chat-error">Error: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function appendChatTurn(question, loading = false) {
+  const thread = $("#chat-thread");
+  const turn = document.createElement("article");
+  turn.className = "chat-turn";
+  turn.innerHTML = `<div class="chat-q">${escapeHtml(question)}</div>
+    <div class="chat-loading">${loading ? "Thinking…" : ""}</div>`;
+  thread.prepend(turn);
+  return turn;
+}
+
+function renderChatTurn(turn, data) {
+  const { chart_spec, insight, tool_trace, from_cache, latency_s } = data;
+  const cacheBadge = from_cache
+    ? '<span class="badge badge-cache">cached</span>'
+    : `<span class="badge">${latency_s ?? "?"}s</span>`;
+
+  const chartId = `chart-${Math.random().toString(36).slice(2, 8)}`;
+  const traceLines = (tool_trace || [])
+    .map(
+      (t) =>
+        `<div class="trace-line"><code>${t.tool}</code>(${escapeHtml(
+          JSON.stringify(t.args)
+        )}) → ${escapeHtml(JSON.stringify(t.result))}</div>`
+    )
+    .join("");
+
+  turn.innerHTML = `
+    <div class="chat-q">${escapeHtml(turn.querySelector(".chat-q").textContent)} ${cacheBadge}</div>
+    <div class="chat-insight">${insight ? escapeHtml(insight) : "(no insight returned)"}</div>
+    <div id="${chartId}" class="chat-chart"></div>
+    <details class="chat-trace">
+      <summary>Tool trace (${(tool_trace || []).length} steps)</summary>
+      ${traceLines || "<em>no tool calls</em>"}
+    </details>
+  `;
+
+  if (chart_spec && chart_spec.data && chart_spec.data.length) {
+    renderPlotlySpec(chartId, chart_spec);
+  }
+}
+
+function renderPlotlySpec(divId, spec) {
+  const data = spec.data;
+  const xs = data.map((r) => r[spec.x]);
+  const ys = data.map((r) => r[spec.y]);
+  let traces;
+  switch (spec.kind) {
+    case "bar":
+      traces = [{ type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+      break;
+    case "line":
+      traces = [{ type: "scatter", mode: "lines+markers", x: xs, y: ys, line: { color: "#38bdf8" } }];
+      break;
+    case "scatter":
+      traces = [{ type: "scatter", mode: "markers", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+      break;
+    case "hist":
+      traces = [{ type: "histogram", x: xs, marker: { color: "#38bdf8" } }];
+      break;
+    case "pie":
+      traces = [{ type: "pie", labels: xs, values: ys }];
+      break;
+    default:
+      traces = [{ type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } }];
+  }
+  Plotly.newPlot(
+    divId,
+    traces,
+    { ...PLOTLY_LAYOUT, title: { text: spec.title }, height: 320 },
+    { displayModeBar: false, responsive: true }
+  );
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
