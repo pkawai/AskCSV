@@ -1,0 +1,21 @@
+employee_id,name,department,hire_date,salary,years_experience,performance_rating
+1,Alice Johnson,Engineering,2021-03-15,85000,5,4.5
+2,Bob Smith,Sales,2019-07-22,72000,7,3.8
+3,Carol Davis,Engineering,2022-01-10,92000,8,4.7
+4,David Lee,Marketing,2020-09-05,68000,4,4.0
+5,Emma Wilson,Engineering,2018-11-30,110000,10,4.8
+6,Frank Miller,Sales,2021-06-14,75000,6,4.2
+7,Grace Chen,HR,2019-04-18,65000,5,3.9
+8,Henry Brown,Marketing,2022-08-22,70000,3,4.1
+9,Ivy Martinez,Engineering,2023-02-01,95000,7,4.6
+10,Jack Taylor,Sales,2020-12-10,78000,5,3.5
+11,Karen Anderson,HR,2021-10-05,62000,4,4.0
+12,Liam Thomas,Engineering,2017-05-20,125000,12,4.9
+13,Mia Jackson,Marketing,2022-03-15,72000,4,4.3
+14,Noah White,Sales,2023-07-08,68000,2,3.7
+15,Olivia Harris,Engineering,2019-09-12,98000,9,4.5
+16,Peter Clark,HR,2020-06-30,64000,5,3.8
+17,Quinn Lewis,Engineering,2021-11-25,88000,6,4.4
+18,Rachel Walker,Marketing,2018-04-03,82000,8,4.2
+19,Sam Hall,Sales,2022-10-17,73000,3,3.9
+20,Tina Allen,Engineering,2023-05-22,90000,5,4.6
