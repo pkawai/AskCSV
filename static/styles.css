@@ -113,6 +113,24 @@ main {
   font-weight: 600;
 }
 
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.card-head h2 { margin: 0; }
+
+.export-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.export-link:hover { text-decoration: underline; }
+
 /* Overview stats */
 
 .stats-grid {

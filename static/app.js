@@ -53,6 +53,7 @@ async function uploadAndRender(file) {
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
     $("#chat-section").hidden = false;
+    $("#export-link").href = `/report/${currentSessionId}`;
     loadAiSuggestions(currentSessionId);
   } catch (err) {
     showStatus(`Error: ${err.message}`, true);

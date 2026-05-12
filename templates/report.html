@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AskCSV report — {{ session.filename }}</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --fg: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+      --card: #1e293b; --border: #334155; --success: #34d399;
+    }
+    body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: var(--bg); color: var(--fg); line-height: 1.5; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    header { padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    header h1 { color: var(--accent); margin: 0; }
+    header .meta { color: var(--muted); margin-top: 0.25rem; font-size: 0.9rem; }
+    section { background: var(--card); border: 1px solid var(--border);
+              border-radius: 10px; padding: 1.5rem; margin-top: 1.5rem; }
+    h2 { color: var(--accent); font-size: 1.1rem; margin: 0 0 1rem; }
+    code { background: rgba(56,189,248,0.1); color: var(--accent);
+           padding: 0 4px; border-radius: 3px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+             gap: 0.75rem; }
+    .stat { background: rgba(15,23,42,0.6); padding: 0.75rem; border-radius: 6px; }
+    .stat-label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase;
+                  letter-spacing: 0.5px; }
+    .stat-value { font-size: 1.3rem; font-weight: 600; }
+    .columns { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+               gap: 0.5rem; }
+    .col-card { background: rgba(15,23,42,0.5); border: 1px solid var(--border);
+                border-radius: 6px; padding: 0.6rem; font-size: 0.85rem; }
+    .col-name { font-weight: 600; }
+    .col-kind { font-size: 0.7rem; color: var(--muted); margin-left: 0.5rem; }
+    .qa { background: rgba(15,23,42,0.6); border: 1px solid var(--border);
+          border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .qa-q { font-weight: 600; margin-bottom: 0.5rem; }
+    .qa-insight { color: var(--fg); margin-bottom: 0.5rem; }
+    .qa-chart { height: 320px; }
+    .badge-cache { background: rgba(52,211,153,0.2); color: var(--success);
+                   padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
+    footer { color: var(--muted); text-align: center; padding: 2rem 0 1rem;
+             font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>AskCSV report</h1>
+    <div class="meta">
+      <code>{{ session.filename }}</code> · session <code>{{ session.session_id }}</code>
+      · uploaded {{ session.upload_ts }}
+      · generated {{ generated_at }}
+    </div>
+  </header>
+
+  <section>
+    <h2>Overview</h2>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Rows</div><div class="stat-value">{{ session.row_count }}</div></div>
+      <div class="stat"><div class="stat-label">Columns</div><div class="stat-value">{{ session.column_count }}</div></div>
+      <div class="stat"><div class="stat-label">Encoding</div><div class="stat-value">{{ session.encoding }}</div></div>
+      <div class="stat"><div class="stat-label">Questions asked</div><div class="stat-value">{{ qa|length }}</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Columns</h2>
+    <div class="columns">
+      {% for col in profile.columns %}
+        {% if not col.name.endswith('_is_outlier') %}
+          <div class="col-card">
+            <span class="col-name">{{ col.name }}</span>
+            <span class="col-kind">{{ col.kind }}</span>
+            <div class="meta">nulls {{ col.null_count }} · unique {{ col.unique_count }}</div>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Missing values</h2>
+    <div id="missing-chart" style="height: 280px;"></div>
+  </section>
+
+  {% if profile.correlation_matrix.values %}
+  <section>
+    <h2>Correlation matrix</h2>
+    <div id="correlation-chart" style="height: 320px;"></div>
+  </section>
+  {% endif %}
+
+  {% if suggested_charts %}
+  <section>
+    <h2>Suggested charts</h2>
+    <ul>
+      {% for s in suggested_charts %}
+        <li><strong>{{ s.title }}</strong> ({{ s.kind }}, x=<code>{{ s.x }}</code>, y=<code>{{ s.y }}</code>) — {{ s.reason }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if qa %}
+  <section>
+    <h2>Q&amp;A history</h2>
+    {% for item in qa %}
+      <div class="qa">
+        <div class="qa-q">Q: {{ item.question }}
+          {% if item.response.from_cache %}<span class="badge-cache">cached</span>{% endif %}
+        </div>
+        <div class="qa-insight">{{ item.response.insight or "(no insight)" }}</div>
+        <div id="qa-chart-{{ loop.index0 }}" class="qa-chart"></div>
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer>Generated by AskCSV · {{ generated_at }}</footer>
+</main>
+
+<script>
+  const PROFILE = {{ profile_json|safe }};
+  const QA = {{ qa_json|safe }};
+  const LAYOUT = {
+    paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
+    font: { color: "#e2e8f0" }, margin: { l: 50, r: 30, t: 40, b: 60 },
+  };
+
+  // Missing-value bar
+  const mvm = PROFILE.missing_value_matrix;
+  if (mvm && mvm.columns.length) {
+    Plotly.newPlot("missing-chart",
+      [{ type: "bar", x: mvm.columns, y: mvm.null_pct, marker: { color: "#38bdf8" } }],
+      { ...LAYOUT, yaxis: { title: "null %" } },
+      { displayModeBar: false, responsive: true });
+  }
+
+  // Correlation heatmap
+  const corr = PROFILE.correlation_matrix;
+  if (corr && corr.columns.length >= 2) {
+    Plotly.newPlot("correlation-chart",
+      [{ type: "heatmap", z: corr.values, x: corr.columns, y: corr.columns,
+         zmin: -1, zmax: 1, colorscale: "RdBu", reversescale: true }],
+      LAYOUT,
+      { displayModeBar: false, responsive: true });
+  }
+
+  // Per-question charts
+  QA.forEach((item, i) => {
+    const spec = item.response && item.response.chart_spec;
+    if (!spec || !spec.data || !spec.data.length) return;
+    const xs = spec.data.map(r => r[spec.x]);
+    const ys = spec.data.map(r => r[spec.y]);
+    let trace;
+    switch (spec.kind) {
+      case "line": trace = { type: "scatter", mode: "lines+markers", x: xs, y: ys, line: { color: "#38bdf8" } }; break;
+      case "scatter": trace = { type: "scatter", mode: "markers", x: xs, y: ys, marker: { color: "#38bdf8" } }; break;
+      case "hist": trace = { type: "histogram", x: xs, marker: { color: "#38bdf8" } }; break;
+      case "pie": trace = { type: "pie", labels: xs, values: ys }; break;
+      default: trace = { type: "bar", x: xs, y: ys, marker: { color: "#38bdf8" } };
+    }
+    Plotly.newPlot(`qa-chart-${i}`, [trace],
+      { ...LAYOUT, title: { text: spec.title } },
+      { displayModeBar: false, responsive: true });
+  });
+</script>
+</body>
+</html>

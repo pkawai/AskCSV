@@ -11,7 +11,16 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from src import chart_suggester, cleaner, ingest, nlq_engine, profiler, storage, suggester
+from src import (
+    chart_suggester,
+    cleaner,
+    ingest,
+    nlq_engine,
+    profiler,
+    report_builder,
+    storage,
+    suggester,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -105,6 +114,14 @@ def create_app() -> Flask:
         except Exception as exc:  # noqa: BLE001
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
         return jsonify({"suggestions": suggestions})
+
+    @app.route("/report/<session_id>")
+    def report_route(session_id: str):
+        """Standalone HTML report for a session — opens in a new tab."""
+        try:
+            return report_builder.render_report_html(session_id)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 404
 
     @app.route("/profile/<session_id>")
     def profile_route(session_id: str):

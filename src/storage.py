@@ -155,3 +155,24 @@ def save_cached_nlq(session_id: str, question: str, response: dict[str, Any]) ->
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
+
+
+def list_session_questions(session_id: str) -> list[dict[str, Any]]:
+    """Return all cached questions for a session, oldest first.
+
+    Used by the report builder to embed all Q&A pairs.
+    """
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT question_normalized, response_json, created_ts "
+            "FROM nlq_cache WHERE session_id = ? ORDER BY created_ts ASC",
+            (session_id,),
+        ).fetchall()
+    out: list[dict[str, Any]] = []
+    for question, response_json, created_ts in rows:
+        try:
+            response = json.loads(response_json)
+        except json.JSONDecodeError:
+            continue
+        out.append({"question": question, "response": response, "created_ts": created_ts})
+    return out
