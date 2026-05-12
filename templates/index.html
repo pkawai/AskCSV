@@ -15,7 +15,13 @@
         <h1>AskCSV</h1>
         <p class="tagline">Drop a CSV. Get clean data, smart charts, and an AI analyst.</p>
       </div>
-      <div id="usage-chip" class="usage-chip" title="LLM tokens used this session" hidden></div>
+      <div class="header-controls">
+        <label class="provider-switcher" title="Hot-swap LLM provider at runtime">
+          <span class="provider-switcher-label">LLM:</span>
+          <select id="provider-select"></select>
+        </label>
+        <div id="usage-chip" class="usage-chip" title="LLM tokens used this session" hidden></div>
+      </div>
     </div>
   </header>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>

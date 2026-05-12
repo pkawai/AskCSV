@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from src import groq_client, storage, suggester
+from src import llm_client, storage, suggester
 
 
 @pytest.fixture(autouse=True)
@@ -49,7 +49,7 @@ def test_suggest_analyses_parses_json(session_id):
             ]
         }
     )
-    with patch.object(groq_client, "get_client", return_value=FakeClient(payload)):
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
         out = suggester.suggest_analyses(session_id)
     assert len(out) == 2
     assert out[0]["question"] == "Revenue by region?"
@@ -60,13 +60,13 @@ def test_suggest_analyses_caps_at_max(session_id):
     many = json.dumps(
         {"suggestions": [{"question": f"q{i}", "why": "x"} for i in range(20)]}
     )
-    with patch.object(groq_client, "get_client", return_value=FakeClient(many)):
+    with patch.object(llm_client, "get_client", return_value=FakeClient(many)):
         out = suggester.suggest_analyses(session_id)
     assert len(out) <= suggester.MAX_SUGGESTIONS
 
 
 def test_suggest_analyses_handles_bad_json(session_id):
-    with patch.object(groq_client, "get_client", return_value=FakeClient("not json")):
+    with patch.object(llm_client, "get_client", return_value=FakeClient("not json")):
         out = suggester.suggest_analyses(session_id)
     assert out == []
 
@@ -82,7 +82,7 @@ def test_suggest_analyses_skips_malformed_items(session_id):
             ]
         }
     )
-    with patch.object(groq_client, "get_client", return_value=FakeClient(payload)):
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
         out = suggester.suggest_analyses(session_id)
     assert len(out) == 2
 
@@ -94,19 +94,19 @@ def test_suggest_analyses_unknown_session():
 
 def test_suggest_followups_parses_json():
     payload = json.dumps({"followups": ["q1", "q2", "q3"]})
-    with patch.object(groq_client, "get_client", return_value=FakeClient(payload)):
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
         out = suggester.suggest_followups("orig", "an insight", "bar")
     assert out == ["q1", "q2", "q3"]
 
 
 def test_suggest_followups_caps_at_max():
     payload = json.dumps({"followups": ["q1", "q2", "q3", "q4", "q5"]})
-    with patch.object(groq_client, "get_client", return_value=FakeClient(payload)):
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
         out = suggester.suggest_followups("orig", "insight", "bar")
     assert len(out) <= suggester.MAX_FOLLOWUPS
 
 
 def test_suggest_followups_handles_bad_json():
-    with patch.object(groq_client, "get_client", return_value=FakeClient("nope")):
+    with patch.object(llm_client, "get_client", return_value=FakeClient("nope")):
         out = suggester.suggest_followups("orig", "insight", "bar")
     assert out == []

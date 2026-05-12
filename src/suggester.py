@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src import groq_client, nlq_engine, prompts, storage
+from src import llm_client, nlq_engine, prompts, storage
 
 MAX_SUGGESTIONS = 5
 MAX_FOLLOWUPS = 3
@@ -24,7 +24,7 @@ def suggest_analyses(session_id: str) -> list[dict[str, Any]]:
         raise ValueError(f"Unknown session: {session_id}")
 
     schema = nlq_engine.build_schema_summary(df)
-    client = groq_client.get_client()
+    client = llm_client.get_client()
     resp = client.chat(
         messages=[
             {"role": "system", "content": prompts.SUGGEST_SYSTEM_PROMPT},
@@ -61,7 +61,7 @@ def suggest_analyses(session_id: str) -> list[dict[str, Any]]:
 
 def suggest_followups(question: str, insight: str, chart_kind: str) -> list[str]:
     """After answering a question, propose 3 clickable follow-up questions."""
-    client = groq_client.get_client()
+    client = llm_client.get_client()
     context = (
         f"Original question: {question}\n"
         f"Chart kind shown: {chart_kind}\n"

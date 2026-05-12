@@ -15,7 +15,7 @@ from src import (
     builder,
     chart_suggester,
     cleaner,
-    groq_client,
+    llm_client,
     ingest,
     nlq_engine,
     profiler,
@@ -175,10 +175,12 @@ def create_app() -> Flask:
     def usage_route():
         """Process-lifetime LLM usage stats. Read by the UI's token chip."""
         try:
-            client = groq_client.get_client()
-            return jsonify(client.usage.to_dict())
+            client = llm_client.get_client()
+            payload = client.usage.to_dict()
+            payload["provider"] = client.provider
+            payload["configured"] = True
+            return jsonify(payload)
         except RuntimeError:
-            # GROQ_API_KEY not set — report zeros rather than 500.
             return jsonify({
                 "total_input_tokens": 0,
                 "total_output_tokens": 0,
@@ -186,8 +188,37 @@ def create_app() -> Flask:
                 "fallback_calls": 0,
                 "errors": 0,
                 "per_model": {},
+                "provider": None,
                 "configured": False,
             })
+
+    @app.route("/llm", methods=["GET"])
+    def llm_info_route():
+        """Return current provider + list of available providers."""
+        current = None
+        try:
+            current = llm_client.get_client().provider
+        except RuntimeError:
+            pass
+        return jsonify(
+            {
+                "current": current,
+                "providers": llm_client.available_providers(),
+            }
+        )
+
+    @app.route("/llm", methods=["POST"])
+    def llm_swap_route():
+        """Hot-swap the active LLM provider at runtime."""
+        payload = request.get_json(silent=True) or {}
+        provider = (payload.get("provider") or "").strip()
+        if not provider:
+            return jsonify({"error": "provider is required"}), 400
+        try:
+            client = llm_client.switch_provider(provider)
+        except RuntimeError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify({"current": client.provider, "primary_model": client.primary_model})
 
     @app.route("/profile/<session_id>")
     def profile_route(session_id: str):

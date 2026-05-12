@@ -1,6 +1,6 @@
 """NLQ engine tests with a fully mocked Groq client.
 
-We replace src.groq_client.get_client() with a fake whose .chat() returns
+We replace src.llm_client.get_client() with a fake whose .chat() returns
 canned ChatCompletion-shaped objects, so the engine logic (tool dispatch,
 loop termination, cache, error paths) is tested without any network.
 """
@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from src import groq_client, nlq_engine, storage
+from src import llm_client, nlq_engine, storage
 
 
 @pytest.fixture(autouse=True)
@@ -93,7 +93,7 @@ def test_ask_runs_groupby_then_plot(session_id):
         _completion(content="The West region leads with the highest revenue.", tool_calls=None),
     ]
     fake = FakeClient(responses)
-    with patch.object(groq_client, "get_client", return_value=fake):
+    with patch.object(llm_client, "get_client", return_value=fake):
         result = nlq_engine.ask(session_id, "What is the total revenue by region?")
     assert result["chart_spec"] is not None
     assert result["chart_spec"]["kind"] == "bar"
@@ -117,7 +117,7 @@ def test_ask_caches_results(session_id):
         _completion(content="insight", tool_calls=None),
     ]
     fake = FakeClient(responses)
-    with patch.object(groq_client, "get_client", return_value=fake):
+    with patch.object(llm_client, "get_client", return_value=fake):
         first = nlq_engine.ask(session_id, "show revenue by region")
         # Don't allow any more LLM calls — must hit cache.
         second = nlq_engine.ask(session_id, "Show  Revenue By  Region")  # case + whitespace differ
@@ -130,13 +130,13 @@ def test_ask_does_not_cache_when_no_chart(session_id):
     """If the LLM gives up without plotting, we don't cache the empty result."""
     responses = [_completion(content="Can't answer with these columns.", tool_calls=None)]
     fake = FakeClient(responses)
-    with patch.object(groq_client, "get_client", return_value=fake):
+    with patch.object(llm_client, "get_client", return_value=fake):
         result = nlq_engine.ask(session_id, "do something impossible")
     assert result["chart_spec"] is None
     # Second call would need another response — confirm cache miss by exhausted queue.
     responses2 = [_completion(content="Again, no.", tool_calls=None)]
     fake2 = FakeClient(responses2)
-    with patch.object(groq_client, "get_client", return_value=fake2):
+    with patch.object(llm_client, "get_client", return_value=fake2):
         result2 = nlq_engine.ask(session_id, "do something impossible")
     assert result2["from_cache"] is False
 
@@ -170,7 +170,7 @@ def test_ask_handles_tool_error_gracefully(session_id):
         _completion(content="recovered", tool_calls=None),
     ]
     fake = FakeClient(responses)
-    with patch.object(groq_client, "get_client", return_value=fake):
+    with patch.object(llm_client, "get_client", return_value=fake):
         result = nlq_engine.ask(session_id, "filter then plot")
     assert result["chart_spec"] is not None
     # First trace entry recorded the error.

@@ -14,7 +14,7 @@ async function refreshUsageChip() {
     const chip = $("#usage-chip");
     chip.hidden = false;
     if (!data.calls) {
-      chip.textContent = "no LLM calls yet";
+      chip.textContent = data.provider ? `${data.provider} · idle` : "no LLM configured";
       chip.classList.remove("usage-chip-active");
       return;
     }
@@ -23,7 +23,7 @@ async function refreshUsageChip() {
     const fb = data.fallback_calls
       ? ` · ${data.fallback_calls} fallback`
       : "";
-    chip.textContent = `${data.calls} calls · ${total} tokens${fb}`;
+    chip.textContent = `${data.provider} · ${data.calls} calls · ${total} tokens${fb}`;
   } catch (_) {
     // silent: usage chip is non-critical
   }
@@ -39,6 +39,44 @@ function toast(message, kind = "info") {
   setTimeout(() => t.remove(), 4500);
 }
 
+// Provider switcher in the header — populated on load, swaps via POST /llm.
+async function loadProviderSwitcher() {
+  const select = $("#provider-select");
+  try {
+    const res = await fetch("/llm");
+    const data = await res.json();
+    select.innerHTML = data.providers
+      .map(
+        (p) =>
+          `<option value="${p.name}" ${p.configured ? "" : "disabled"}
+                   ${p.name === data.current ? "selected" : ""}>
+             ${p.name} ${p.configured ? "" : "(no key)"}
+           </option>`
+      )
+      .join("");
+  } catch (_) {
+    select.innerHTML = '<option>—</option>';
+  }
+}
+
+$("#provider-select").addEventListener("change", async (e) => {
+  const provider = e.target.value;
+  try {
+    const res = await fetch("/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Switch failed");
+    toast(`Switched to ${data.current} (${data.primary_model})`);
+    refreshUsageChip();
+  } catch (err) {
+    toast(`Could not switch: ${err.message}`, "error");
+  }
+});
+
+loadProviderSwitcher();
 refreshUsageChip();
 
 const PLOTLY_LAYOUT = {
