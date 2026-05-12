@@ -608,6 +608,86 @@ main {
   gap: 0.5rem;
 }
 
+.chat-q-text { flex: 1; }
+
+.chat-delete {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.chat-delete:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.chat-turn-removing {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+/* Per-turn chart-kind switcher */
+
+.chart-kinds {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.kind-btn-mini {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.kind-btn-mini:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.kind-btn-mini.active {
+  background: var(--accent);
+  color: #0f172a;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* Chat actions in the header */
+
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover { color: var(--accent); text-decoration: underline; }
+
 .chat-loading {
   color: var(--muted);
   font-style: italic;
