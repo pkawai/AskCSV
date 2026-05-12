@@ -6,6 +6,41 @@ const uploadStatus = $("#upload-status");
 
 let currentSessionId = null;
 
+// Poll /usage after any LLM-touching action so the chip stays fresh.
+async function refreshUsageChip() {
+  try {
+    const res = await fetch("/usage");
+    const data = await res.json();
+    const chip = $("#usage-chip");
+    chip.hidden = false;
+    if (!data.calls) {
+      chip.textContent = "no LLM calls yet";
+      chip.classList.remove("usage-chip-active");
+      return;
+    }
+    chip.classList.add("usage-chip-active");
+    const total = (data.total_input_tokens + data.total_output_tokens).toLocaleString();
+    const fb = data.fallback_calls
+      ? ` · ${data.fallback_calls} fallback`
+      : "";
+    chip.textContent = `${data.calls} calls · ${total} tokens${fb}`;
+  } catch (_) {
+    // silent: usage chip is non-critical
+  }
+}
+
+function toast(message, kind = "info") {
+  const c = $("#toast-container");
+  const t = document.createElement("div");
+  t.className = `toast toast-${kind}`;
+  t.textContent = message;
+  c.appendChild(t);
+  setTimeout(() => t.classList.add("toast-fade"), 3500);
+  setTimeout(() => t.remove(), 4500);
+}
+
+refreshUsageChip();
+
 const PLOTLY_LAYOUT = {
   paper_bgcolor: "#1e293b",
   plot_bgcolor: "#1e293b",
@@ -248,6 +283,9 @@ async function askQuestion(question) {
   } catch (err) {
     turn.innerHTML = `<div class="chat-q">${escapeHtml(question)}</div>
       <div class="chat-error">Error: ${escapeHtml(err.message)}</div>`;
+    toast(err.message, "error");
+  } finally {
+    refreshUsageChip();
   }
 }
 
@@ -256,7 +294,7 @@ function appendChatTurn(question, loading = false) {
   const turn = document.createElement("article");
   turn.className = "chat-turn";
   turn.innerHTML = `<div class="chat-q">${escapeHtml(question)}</div>
-    <div class="chat-loading">${loading ? "Thinking…" : ""}</div>`;
+    <div class="chat-loading">${loading ? '<span class="spinner"></span> Thinking…' : ""}</div>`;
   thread.prepend(turn);
   return turn;
 }

@@ -14,6 +14,7 @@ from flask import Flask, jsonify, render_template, request
 from src import (
     chart_suggester,
     cleaner,
+    groq_client,
     ingest,
     nlq_engine,
     profiler,
@@ -122,6 +123,24 @@ def create_app() -> Flask:
             return report_builder.render_report_html(session_id)
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 404
+
+    @app.route("/usage")
+    def usage_route():
+        """Process-lifetime LLM usage stats. Read by the UI's token chip."""
+        try:
+            client = groq_client.get_client()
+            return jsonify(client.usage.to_dict())
+        except RuntimeError:
+            # GROQ_API_KEY not set — report zeros rather than 500.
+            return jsonify({
+                "total_input_tokens": 0,
+                "total_output_tokens": 0,
+                "calls": 0,
+                "fallback_calls": 0,
+                "errors": 0,
+                "per_model": {},
+                "configured": False,
+            })
 
     @app.route("/profile/<session_id>")
     def profile_route(session_id: str):
