@@ -47,6 +47,19 @@ AskCSV/
 └── .claude/                skills, MCP, Ralph Wiggum loop (course requirements)
 ```
 
+## Course integrations (in `.claude/`)
+- **Skills** — `analyst-persona/SKILL.md` (insight tone + refusal rules) and
+  `chart-picker/SKILL.md` (which chart kind for which data shape). Loaded by
+  Claude Code on demand.
+- **MCP server** — `settings.json` registers a filesystem MCP scoped to
+  `data/samples/` so Claude can browse demo CSVs during dev without
+  filesystem-wide access.
+- **Ralph Wiggum loop** — `commands/ralph.md` is an autonomous test-fixer:
+  it picks one failing test, fixes it, commits on green, repeats. Hard stop
+  conditions prevent runaway loops.
+- **Seed-tests command** — `commands/seed-tests.md` generates fixture-driven
+  tests for the 6 safe tools from any CSV path.
+
 ## Git workflow
 - One feature branch per PR. Merged with `--no-ff` to preserve history.
 - `pytest` green before merge.
