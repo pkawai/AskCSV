@@ -359,3 +359,57 @@ main {
   background: rgba(52, 211, 153, 0.2);
   color: var(--success);
 }
+
+/* AI suggestions + follow-up chips */
+
+.ai-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  min-height: 32px;
+}
+
+.suggest-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-right: 0.25rem;
+}
+
+.suggest-error { color: var(--danger); }
+
+.chip {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.chip:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--accent);
+}
+
+.chip-followup {
+  background: rgba(129, 140, 248, 0.1);
+  border-color: rgba(129, 140, 248, 0.3);
+  color: var(--accent-2);
+}
+
+.chip-followup:hover {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: var(--accent-2);
+}
+
+.followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}

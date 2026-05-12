@@ -53,9 +53,44 @@ async function uploadAndRender(file) {
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
     $("#chat-section").hidden = false;
+    loadAiSuggestions(currentSessionId);
   } catch (err) {
     showStatus(`Error: ${err.message}`, true);
   }
+}
+
+async function loadAiSuggestions(sessionId) {
+  const container = $("#ai-suggestions");
+  container.innerHTML = '<span class="suggest-hint">Thinking up analyses…</span>';
+  try {
+    const res = await fetch(`/suggest/${sessionId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Suggestions failed");
+    renderAiSuggestions(data.suggestions || []);
+  } catch (err) {
+    container.innerHTML = `<span class="suggest-hint suggest-error">Suggestions unavailable: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+function renderAiSuggestions(suggestions) {
+  const container = $("#ai-suggestions");
+  if (!suggestions.length) {
+    container.innerHTML = '<span class="suggest-hint">No suggestions returned.</span>';
+    return;
+  }
+  container.innerHTML =
+    '<span class="suggest-hint">Try one of these:</span>' +
+    suggestions
+      .map(
+        (s) =>
+          `<button class="chip" data-q="${escapeHtml(s.question)}" title="${escapeHtml(s.why)}">
+             ${escapeHtml(s.question)}
+           </button>`
+      )
+      .join("");
+  container.querySelectorAll(".chip").forEach((btn) =>
+    btn.addEventListener("click", () => askQuestion(btn.dataset.q))
+  );
 }
 
 function showStatus(msg, isError = false) {
@@ -226,7 +261,7 @@ function appendChatTurn(question, loading = false) {
 }
 
 function renderChatTurn(turn, data) {
-  const { chart_spec, insight, tool_trace, from_cache, latency_s } = data;
+  const { chart_spec, insight, tool_trace, from_cache, latency_s, followups } = data;
   const cacheBadge = from_cache
     ? '<span class="badge badge-cache">cached</span>'
     : `<span class="badge">${latency_s ?? "?"}s</span>`;
@@ -241,10 +276,23 @@ function renderChatTurn(turn, data) {
     )
     .join("");
 
+  const followupChips = (followups || []).length
+    ? `<div class="followups">
+         <span class="suggest-hint">Follow-ups:</span>
+         ${followups
+           .map(
+             (q) =>
+               `<button class="chip chip-followup" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`
+           )
+           .join("")}
+       </div>`
+    : "";
+
   turn.innerHTML = `
     <div class="chat-q">${escapeHtml(turn.querySelector(".chat-q").textContent)} ${cacheBadge}</div>
     <div class="chat-insight">${insight ? escapeHtml(insight) : "(no insight returned)"}</div>
     <div id="${chartId}" class="chat-chart"></div>
+    ${followupChips}
     <details class="chat-trace">
       <summary>Tool trace (${(tool_trace || []).length} steps)</summary>
       ${traceLines || "<em>no tool calls</em>"}
@@ -254,6 +302,9 @@ function renderChatTurn(turn, data) {
   if (chart_spec && chart_spec.data && chart_spec.data.length) {
     renderPlotlySpec(chartId, chart_spec);
   }
+  turn.querySelectorAll(".chip-followup").forEach((btn) =>
+    btn.addEventListener("click", () => askQuestion(btn.dataset.q))
+  );
 }
 
 function renderPlotlySpec(divId, spec) {

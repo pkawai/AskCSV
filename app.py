@@ -11,7 +11,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
-from src import chart_suggester, cleaner, ingest, nlq_engine, profiler, storage
+from src import chart_suggester, cleaner, ingest, nlq_engine, profiler, storage, suggester
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -63,10 +63,15 @@ def create_app() -> Flask:
 
     @app.route("/ask", methods=["POST"])
     def ask_route():
-        """Run a single NLQ question against a session's dataframe."""
+        """Run a single NLQ question against a session's dataframe.
+
+        Optionally returns AI-generated follow-up questions when
+        ``include_followups`` is true in the request body.
+        """
         payload = request.get_json(silent=True) or {}
         session_id = payload.get("session_id")
         question = (payload.get("question") or "").strip()
+        include_followups = bool(payload.get("include_followups", True))
         if not session_id or not question:
             return jsonify({"error": "session_id and question are required"}), 400
         try:
@@ -75,7 +80,31 @@ def create_app() -> Flask:
             return jsonify({"error": str(exc)}), 404
         except Exception as exc:  # noqa: BLE001 - surface to client
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+
+        # Follow-ups are best-effort; failures shouldn't break the answer.
+        if include_followups and result.get("chart_spec"):
+            try:
+                result["followups"] = suggester.suggest_followups(
+                    question=question,
+                    insight=result.get("insight", ""),
+                    chart_kind=result["chart_spec"].get("kind", "bar"),
+                )
+            except Exception:  # noqa: BLE001
+                result["followups"] = []
+        else:
+            result["followups"] = []
         return jsonify(result)
+
+    @app.route("/suggest/<session_id>")
+    def suggest_route(session_id: str):
+        """AI-generated list of recommended analyses for this session."""
+        try:
+            suggestions = suggester.suggest_analyses(session_id)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 404
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+        return jsonify({"suggestions": suggestions})
 
     @app.route("/profile/<session_id>")
     def profile_route(session_id: str):
