@@ -160,11 +160,39 @@
     const ys = spec.data.map(r => r[spec.y]);
     let trace, extra = {};
     switch (spec.kind) {
-      case "line":
-        trace = { type: "scatter", mode: "lines+markers", x: xs, y: ys,
-                  line: { color: "#38bdf8", width: 2.5 }, marker: { color: "#38bdf8", size: 8 } };
-        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)" } };
+      case "line": {
+        const xLooksLikeDates = xs.length > 0 &&
+          xs.every(v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v));
+        const dense = xs.length > 30;
+        trace = {
+          type: "scatter",
+          mode: dense ? "lines" : "lines+markers",
+          x: xs, y: ys,
+          line: { color: "#38bdf8", width: dense ? 1.8 : 2.5 },
+          marker: { color: "#38bdf8", size: dense ? 0 : 8 },
+          hovertemplate: xLooksLikeDates
+            ? "<b>%{x|%b %d, %Y}</b><br>%{y:,.2f}<extra></extra>"
+            : "<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
+        };
+        const xaxis = { gridcolor: "rgba(148,163,184,0.05)", automargin: true };
+        if (xLooksLikeDates) {
+          xaxis.type = "date";
+          xaxis.rangeselector = {
+            buttons: [
+              { count: 1, label: "1m", step: "month", stepmode: "backward" },
+              { count: 3, label: "3m", step: "month", stepmode: "backward" },
+              { count: 6, label: "6m", step: "month", stepmode: "backward" },
+              { count: 1, label: "1y", step: "year", stepmode: "backward" },
+              { step: "all", label: "All" },
+            ],
+            bgcolor: "rgba(15,23,42,0.8)",
+            activecolor: "#38bdf8",
+            font: { color: "#e2e8f0", size: 11 },
+          };
+        }
+        extra = { yaxis: { gridcolor: "rgba(148,163,184,0.15)" }, xaxis };
         break;
+      }
       case "scatter":
         trace = { type: "scatter", mode: "markers", x: xs, y: ys,
                   marker: { color: "#38bdf8", size: 10, opacity: 0.75 } };
