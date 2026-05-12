@@ -1,0 +1,26 @@
+{
+  "$comment": "Per-project Claude Code settings. MCP servers + permission allowlist for AskCSV.",
+  "mcpServers": {
+    "askcsv-samples": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./data/samples"],
+      "description": "Filesystem MCP scoped to data/samples/ so Claude Code can browse demo CSVs without filesystem-wide access."
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(python -m src.tools:*)",
+      "Bash(python scripts/poc_nlq.py:*)",
+      "Bash(python app.py)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)"
+    ]
+  }
+}
