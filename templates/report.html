@@ -128,6 +128,12 @@
     paper_bgcolor: "#1e293b", plot_bgcolor: "#1e293b",
     font: { color: "#e2e8f0" }, margin: { l: 50, r: 30, t: 40, b: 60 },
   };
+  // PNG download enabled, rest of modebar removed.
+  const PLOTLY_CONFIG = {
+    displayModeBar: true, displaylogo: false, responsive: true,
+    modeBarButtonsToRemove: ["zoom2d","pan2d","select2d","lasso2d","zoomIn2d","zoomOut2d","autoScale2d","resetScale2d","hoverClosestCartesian","hoverCompareCartesian","toggleSpikelines"],
+    toImageButtonOptions: { format: "png", filename: "askcsv_chart", height: 600, width: 1000, scale: 2 },
+  };
 
   // Missing-value bar
   const mvm = PROFILE.missing_value_matrix;
@@ -135,7 +141,7 @@
     Plotly.newPlot("missing-chart",
       [{ type: "bar", x: mvm.columns, y: mvm.null_pct, marker: { color: "#38bdf8" } }],
       { ...LAYOUT, yaxis: { title: "null %" } },
-      { displayModeBar: false, responsive: true });
+      PLOTLY_CONFIG);
   }
 
   // Correlation heatmap
@@ -145,7 +151,7 @@
       [{ type: "heatmap", z: corr.values, x: corr.columns, y: corr.columns,
          zmin: -1, zmax: 1, colorscale: "RdBu", reversescale: true }],
       LAYOUT,
-      { displayModeBar: false, responsive: true });
+      PLOTLY_CONFIG);
   }
 
   const PALETTE = ["#38bdf8","#818cf8","#34d399","#fbbf24","#f472b6","#22d3ee","#a78bfa","#fb923c","#84cc16","#fb7185"];
@@ -223,7 +229,7 @@
     }
     Plotly.newPlot(`qa-chart-${i}`, [trace],
       { ...LAYOUT, title: { text: spec.title }, ...extra },
-      { displayModeBar: false, responsive: true });
+      PLOTLY_CONFIG);
   });
 </script>
 </body>

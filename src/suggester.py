@@ -12,6 +12,9 @@ from src import llm_client, nlq_engine, prompts, storage
 
 MAX_SUGGESTIONS = 5
 MAX_FOLLOWUPS = 3
+MAX_DATA_IDEAS = 6
+ALLOWED_DIFFICULTY = {"easy", "medium", "hard"}
+ALLOWED_CATEGORY = {"analytics", "ml", "dashboard", "insight", "segmentation"}
 
 
 def suggest_analyses(session_id: str) -> list[dict[str, Any]]:
@@ -54,6 +57,65 @@ def suggest_analyses(session_id: str) -> list[dict[str, Any]]:
                 "question": str(s["question"])[:200],
                 "why": str(s.get("why", ""))[:200],
                 "chart_kind": str(s.get("chart_kind", "bar"))[:20],
+            }
+        )
+    return out
+
+
+def suggest_data_ideas(session_id: str) -> list[dict[str, Any]]:
+    """Bigger-picture project ideas the user could build with this dataset.
+
+    Different scope from suggest_analyses(): instead of 'try this chart',
+    this asks 'what could you BUILD with this data?' — ML models,
+    dashboards, segmentations, insights.
+    """
+    df = storage.load_dataframe(session_id)
+    if df is None:
+        raise ValueError(f"Unknown session: {session_id}")
+
+    schema = nlq_engine.build_schema_summary(df)
+    client = llm_client.get_client()
+    resp = client.chat(
+        messages=[
+            {"role": "system", "content": prompts.DATA_IDEAS_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"Schema:\n```json\n{json.dumps(schema, indent=2)}\n```",
+            },
+        ],
+        max_tokens=1500,
+        response_format={"type": "json_object"},
+    )
+    content = resp.choices[0].message.content or "{}"
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        return []
+    ideas = data.get("ideas", [])
+    if not isinstance(ideas, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for idea in ideas[:MAX_DATA_IDEAS]:
+        if not isinstance(idea, dict) or not idea.get("title"):
+            continue
+        how = idea.get("how", [])
+        if not isinstance(how, list):
+            how = [str(how)]
+        out.append(
+            {
+                "title": str(idea["title"])[:120],
+                "what": str(idea.get("what", ""))[:400],
+                "how": [str(h)[:200] for h in how[:4]],
+                "difficulty": (
+                    str(idea.get("difficulty", "medium"))
+                    if str(idea.get("difficulty", "medium")) in ALLOWED_DIFFICULTY
+                    else "medium"
+                ),
+                "category": (
+                    str(idea.get("category", "analytics"))
+                    if str(idea.get("category", "analytics")) in ALLOWED_CATEGORY
+                    else "analytics"
+                ),
             }
         )
     return out

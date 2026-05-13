@@ -69,6 +69,59 @@ AskCSV/
 └── .claude/                skills, MCP, Ralph Wiggum loop (course requirements)
 ```
 
+## Sharing publicly
+
+AskCSV runs locally by default. Three ways to share it:
+
+### Option A — ngrok (fastest, 60 seconds, temporary)
+
+For a one-off demo where you want a public URL anyone can hit:
+
+```bash
+# 1. Install ngrok once (https://ngrok.com/download)
+brew install ngrok          # macOS
+
+# 2. Start AskCSV
+python app.py               # runs on localhost:5000
+
+# 3. In a second terminal, open a tunnel
+ngrok http 5000
+```
+
+ngrok prints a public HTTPS URL like `https://a1b2-c3d4.ngrok-free.app` — share it with anyone, they hit your local app. Free tier sessions live ~2 hours; restart for a new URL. **Anyone with the URL can use your API keys** — only share during active demos.
+
+### Option B — Render (free, permanent)
+
+For a long-lived public URL (e.g. to show your instructor a week later):
+
+1. Push to GitHub (already done at https://github.com/pkawai/AskCSV).
+2. Sign up at https://render.com (free tier, no card).
+3. New → Web Service → connect the repo.
+4. Build command: `pip install -r requirements.txt`
+5. Start command: `gunicorn 'app:create_app()'` (add `gunicorn` to requirements.txt).
+6. Add env vars in Render's dashboard: `GROQ_API_KEY`, `GEMINI_API_KEY`, `LLM_PROVIDER`.
+7. Deploy. Render gives you `https://askcsv-<random>.onrender.com`.
+
+Cost: $0 on free tier. Caveat: free Render workers sleep after 15 min idle; first hit after sleep takes ~30s to wake.
+
+### Option C — Hugging Face Spaces (free, permanent, designed for ML demos)
+
+If you want a `huggingface.co/spaces/...` URL that doubles as a portfolio piece:
+
+1. Sign in at https://huggingface.co with GitHub.
+2. New Space → SDK: Docker (or use the included Flask Dockerfile template).
+3. Push your repo. HF builds + serves it automatically.
+4. Add `GROQ_API_KEY` and `GEMINI_API_KEY` as Space secrets.
+
+### About cost / abuse risk
+
+All three options expose your LLM API keys to anyone who can hit the public URL. Risk levels:
+
+- **ngrok**: low if you only run it during demos
+- **Render / HF Spaces**: someone could rate-limit your free LLM tiers (no real cost since free tier caps are hard)
+
+To eliminate risk entirely, add a password gate or rotate the keys after a public session.
+
 ## Course integrations (in `.claude/`)
 - **Skills** — `analyst-persona/SKILL.md` (insight tone + refusal rules) and
   `chart-picker/SKILL.md` (which chart kind for which data shape). Loaded by

@@ -117,6 +117,26 @@ def create_app() -> Flask:
             return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
         return jsonify({"suggestions": suggestions})
 
+    @app.route("/data_ideas/<session_id>")
+    def data_ideas_route(session_id: str):
+        """Bigger-picture project ideas based on the dataset's schema.
+
+        Cached per session because the schema doesn't change after upload —
+        repeated clicks are free.
+        """
+        cache_key = "[ideas] data_ideas"
+        cached = storage.get_cached_nlq(session_id, cache_key)
+        if cached:
+            return jsonify({"ideas": cached.get("ideas", []), "from_cache": True})
+        try:
+            ideas = suggester.suggest_data_ideas(session_id)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 404
+        except Exception as exc:  # noqa: BLE001
+            return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+        storage.save_cached_nlq(session_id, cache_key, {"ideas": ideas})
+        return jsonify({"ideas": ideas, "from_cache": False})
+
     @app.route("/report/<session_id>")
     def report_route(session_id: str):
         """Standalone HTML report for a session — opens in a new tab."""

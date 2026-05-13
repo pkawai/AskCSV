@@ -94,6 +94,26 @@ const PLOTLY_LAYOUT = {
   margin: { l: 50, r: 30, t: 40, b: 60 },
 };
 
+// Shared Plotly config: enable the modebar with ONLY the PNG download button.
+// Everything else (lasso, pan, zoom, reset) is removed for a clean look.
+const PLOTLY_CONFIG = {
+  displayModeBar: true,
+  displaylogo: false,
+  responsive: true,
+  modeBarButtonsToRemove: [
+    "zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
+    "autoScale2d", "resetScale2d", "hoverClosestCartesian",
+    "hoverCompareCartesian", "toggleSpikelines",
+  ],
+  toImageButtonOptions: {
+    format: "png",
+    filename: "askcsv_chart",
+    height: 600,
+    width: 1000,
+    scale: 2,
+  },
+};
+
 fileInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -134,6 +154,8 @@ async function uploadAndRender(file) {
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
     $("#chat-section").hidden = false;
+    $("#ideas-section").hidden = false;
+    $("#ideas-grid").innerHTML = "";
     $("#export-link").href = `/report/${currentSessionId}`;
     initBuilder(profData.profile);
     loadAiSuggestions(currentSessionId);
@@ -352,7 +374,7 @@ function renderMissingChart(mvm) {
       margin: { l: 140, r: 60, t: 20, b: 40 },
       showlegend: false,
     },
-    { displayModeBar: false, responsive: true }
+    PLOTLY_CONFIG
   );
 }
 
@@ -398,7 +420,7 @@ function renderCorrelationChart(corr) {
       margin: { l: 120, r: 60, t: 30, b: 80 },
       annotations,
     },
-    { displayModeBar: false, responsive: true }
+    PLOTLY_CONFIG
   );
 }
 
@@ -426,6 +448,61 @@ function renderSuggestedCharts(suggestions) {
 $("#clear-thread").addEventListener("click", () => {
   $("#chat-thread").innerHTML = "";
 });
+
+// ---------- 'What can I build?' AI feature ----------
+
+$("#ideas-load").addEventListener("click", () => loadDataIdeas());
+
+async function loadDataIdeas() {
+  if (!currentSessionId) return;
+  const grid = $("#ideas-grid");
+  const btn = $("#ideas-load");
+  grid.innerHTML = '<div class="ideas-loading"><span class="spinner"></span> Thinking up projects…</div>';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/data_ideas/${currentSessionId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load ideas");
+    renderDataIdeas(data.ideas || []);
+    refreshUsageChip();
+  } catch (err) {
+    grid.innerHTML = `<div class="ideas-error">${escapeHtml(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const CATEGORY_LABEL = {
+  analytics: "📊 Analytics",
+  ml: "🤖 ML",
+  dashboard: "📈 Dashboard",
+  insight: "💡 Insight",
+  segmentation: "🧩 Segmentation",
+};
+
+function renderDataIdeas(ideas) {
+  const grid = $("#ideas-grid");
+  if (!ideas.length) {
+    grid.innerHTML = '<div class="ideas-error">No ideas returned.</div>';
+    return;
+  }
+  grid.innerHTML = ideas
+    .map((i) => {
+      const howList = (i.how || []).map((h) => `<li>${escapeHtml(h)}</li>`).join("");
+      return `
+        <article class="idea-card">
+          <header class="idea-head">
+            <span class="idea-cat idea-cat-${i.category}">${CATEGORY_LABEL[i.category] || i.category}</span>
+            <span class="idea-diff idea-diff-${i.difficulty}">${i.difficulty}</span>
+          </header>
+          <h3 class="idea-title">${escapeHtml(i.title)}</h3>
+          <p class="idea-what">${escapeHtml(i.what)}</p>
+          ${howList ? `<ul class="idea-how">${howList}</ul>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+}
 
 $("#chat-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -876,7 +953,7 @@ function renderPlotlySpec(divId, spec, overlays = {}) {
         ...annotations,
       ] } : {}),
     },
-    { displayModeBar: false, responsive: true }
+    PLOTLY_CONFIG
   );
 }
 
