@@ -280,4 +280,8 @@ def create_app() -> Flask:
 
 
 if __name__ == "__main__":
-    create_app().run(host="127.0.0.1", port=5000, debug=os.environ.get("FLASK_DEBUG") == "1")
+    # Port 8000 by default — macOS Sonoma+ uses port 5000 for AirPlay Receiver,
+    # which makes 5000 unreliable on Mac even when Flask binds successfully.
+    # Override with PORT env var if you need something else.
+    port = int(os.environ.get("PORT", "8000"))
+    create_app().run(host="127.0.0.1", port=port, debug=os.environ.get("FLASK_DEBUG") == "1")

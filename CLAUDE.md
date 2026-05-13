@@ -9,7 +9,7 @@ Flask web app. User uploads a CSV → server parses + cleans (`src/ingest.py`, `
 ## Hard rules
 - **Raw rows never leave the server.** Only schema summaries and aggregated tool results are sent to the LLM.
 - **No arbitrary code execution.** The LLM cannot call `eval`, `exec`, or arbitrary pandas. It can only call the 6 tools defined in `src/tools.py`.
-- **Local-only.** No deployment, no auth, no multi-user. Single-user demo from `localhost:5000`.
+- **Local-only.** No deployment, no auth, no multi-user. Single-user demo from `localhost:8000`.
 
 ## The 6 safe tools (`src/tools.py`)
 1. `filter(column, op, value)` — op ∈ eq, ne, lt, le, gt, ge, in, contains, between
@@ -77,7 +77,7 @@ pip install -r requirements.txt
 cp .env.example .env  # add GROQ_API_KEY
 
 # dev
-python app.py           # localhost:5000
+python app.py           # localhost:8000
 pytest -v               # all tests
 python scripts/poc_nlq.py  # re-validate the NLQ tool-use loop
 ```
