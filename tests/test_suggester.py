@@ -173,3 +173,66 @@ def test_suggest_data_ideas_normalizes_invalid_fields(session_id):
 def test_suggest_data_ideas_handles_bad_json(session_id):
     with patch.object(llm_client, "get_client", return_value=FakeClient("nope")):
         assert suggester.suggest_data_ideas(session_id) == []
+
+
+def test_suggest_data_ideas_accepts_projects_key(session_id):
+    """Llama sometimes returns 'projects' instead of 'ideas'."""
+    payload = json.dumps(
+        {"projects": [{"title": "Forecast revenue", "what": "x", "how": ["a"]}]}
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) == 1
+    assert out[0]["title"] == "Forecast revenue"
+
+
+def test_suggest_data_ideas_accepts_name_synonym(session_id):
+    """Some models use 'name' or 'description' instead of 'title' / 'what'."""
+    payload = json.dumps(
+        {
+            "ideas": [
+                {
+                    "name": "CLV dashboard",
+                    "description": "Lifetime value per customer.",
+                    "steps": ["agg by customer_id", "show top 100"],
+                    "level": "easy",
+                    "type": "dashboard",
+                }
+            ]
+        }
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) == 1
+    assert out[0]["title"] == "CLV dashboard"
+    assert out[0]["what"].startswith("Lifetime")
+    assert out[0]["difficulty"] == "easy"
+    assert out[0]["category"] == "dashboard"
+
+
+def test_suggest_data_ideas_accepts_bare_list(session_id):
+    """Some models drop the wrapper entirely and return a JSON array."""
+    payload = json.dumps([{"title": "t1", "what": "w", "how": ["h"]}])
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) == 1
+
+
+def test_suggest_data_ideas_accepts_single_list_value(session_id):
+    """If the LLM uses some random wrapper but there's only one list, take it."""
+    payload = json.dumps(
+        {"my_custom_wrapper": [{"title": "t1", "what": "w", "how": ["h"]}]}
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) == 1
+
+
+def test_suggest_data_ideas_how_can_be_string(session_id):
+    """Some models return 'how' as a single string instead of a list."""
+    payload = json.dumps(
+        {"ideas": [{"title": "t", "what": "w", "how": "one combined step"}]}
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert out[0]["how"] == ["one combined step"]
