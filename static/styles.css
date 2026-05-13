@@ -465,10 +465,40 @@ header h1 {
   .shelves { grid-template-columns: repeat(2, 1fr); }
 }
 
-main {
-  padding: 2rem 2.5rem;
-  max-width: 1200px;
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 1.5rem;
+  max-width: 1800px;
   margin: 0 auto;
+  padding: 1.5rem 2rem;
+  align-items: start;
+}
+
+main {
+  min-width: 0;
+}
+
+/* Sticky AI sidebar — always visible while you scroll the dashboard. */
+.chat-sidebar {
+  position: sticky;
+  top: 1rem;
+  height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Below 1200px the sidebar stacks below the dashboard. */
+@media (max-width: 1200px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    padding: 1rem 1.5rem;
+  }
+  .chat-sidebar {
+    position: static;
+    height: auto;
+    max-height: 75vh;
+  }
 }
 
 /* Upload */
@@ -762,22 +792,95 @@ main {
   color: var(--muted);
 }
 
-/* Chat / NLQ */
+/* Chat sidebar card */
+
+.chat-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.chat-card-head {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(to bottom, rgba(56,189,248,0.06), transparent);
+  margin: 0;
+  align-items: center;
+}
+
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-title h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.chat-title-icon {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 6px rgba(56,189,248,0.4));
+}
+
+.chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.chat-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
+}
+
+.chat-empty-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.chat-empty-sub {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+#ai-suggestions {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+  margin: 0;
+  max-height: 130px;
+  overflow-y: auto;
+}
 
 .chat-form {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  padding: 0.75rem 1.25rem;
+  margin: 0;
+  background: rgba(15,23,42,0.4);
+  border-bottom: 1px solid rgba(148,163,184,0.08);
 }
 
 .chat-form input {
   flex: 1;
-  padding: 0.6rem 0.9rem;
+  padding: 0.55rem 0.85rem;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--fg);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .chat-form input:focus {
@@ -785,29 +888,52 @@ main {
   border-color: var(--accent);
 }
 
+.chat-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .chat-form button {
-  padding: 0.6rem 1.2rem;
+  padding: 0 0.85rem;
   background: var(--accent);
   color: #0f172a;
   border: none;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.chat-form button:hover { background: #7dd3fc; }
+.chat-form button:hover:not(:disabled) { background: #7dd3fc; }
+.chat-form button:disabled { background: rgba(56,189,248,0.3); cursor: not-allowed; }
 
 .chat-thread {
+  flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem 1.25rem;
 }
+
+/* Slim scrollbar so it doesn't dominate the narrow sidebar. */
+.chat-thread::-webkit-scrollbar { width: 6px; }
+.chat-thread::-webkit-scrollbar-track { background: transparent; }
+.chat-thread::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 3px; }
+.chat-thread::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.5); }
 
 .chat-turn {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.88rem;
+}
+
+.chat-turn .chat-chart {
+  margin: 0.5rem -0.4rem;  /* slight negative bleed so charts use full sidebar width */
 }
 
 .chat-q {
@@ -996,9 +1122,8 @@ main {
 .ai-suggestions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: center;
-  margin-bottom: 1rem;
   min-height: 32px;
 }
 
