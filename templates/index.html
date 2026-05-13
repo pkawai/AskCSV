@@ -26,6 +26,7 @@
   </header>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+  <div class="app-layout">
   <main id="app">
     <section id="upload-zone" class="upload-zone">
       <label for="csv-file" class="drop-label">
@@ -138,27 +139,44 @@
       </div>
     </section>
 
-    <section id="chat-section" class="card" hidden>
-      <div class="card-head">
-        <h2>Ask the analyst</h2>
+  </main>
+
+  <aside class="chat-sidebar" aria-label="AI analyst panel">
+    <section id="chat-section" class="card chat-card">
+      <div class="card-head chat-card-head">
+        <div class="chat-title">
+          <span class="chat-title-icon">✨</span>
+          <h2>AI Analyst</h2>
+        </div>
         <div class="chat-actions">
-          <button id="clear-thread" class="link-btn" type="button">Clear thread</button>
-          <a id="export-link" class="export-link" href="#" target="_blank" rel="noopener">Export report ↗</a>
+          <button id="clear-thread" class="link-btn" type="button">Clear</button>
+          <a id="export-link" class="export-link" href="#" target="_blank" rel="noopener">Export ↗</a>
         </div>
       </div>
-      <div id="ai-suggestions" class="ai-suggestions"></div>
+      <div id="chat-empty" class="chat-empty">
+        <div class="chat-empty-icon">💬</div>
+        <p class="chat-empty-title">Upload a CSV to start</p>
+        <p class="chat-empty-sub">Ask plain-English questions and get charts back.</p>
+      </div>
+      <div id="ai-suggestions" class="ai-suggestions" hidden></div>
       <form id="chat-form" class="chat-form" autocomplete="off">
         <input
           id="chat-input"
           type="text"
-          placeholder="e.g. average revenue by region for orders over $500"
+          placeholder="Upload a CSV first…"
+          disabled
           required
         >
-        <button type="submit">Ask</button>
+        <button id="chat-submit" type="submit" disabled aria-label="Ask">
+          <svg viewBox="0 0 14 14" width="14" height="14" fill="none">
+            <path d="M2 7 L12 7 M8 3 L12 7 L8 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </form>
       <div id="chat-thread" class="chat-thread"></div>
     </section>
-  </main>
+  </aside>
+  </div>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

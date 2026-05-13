@@ -153,10 +153,16 @@ async function uploadAndRender(file) {
     const profData = await profRes.json();
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
-    $("#chat-section").hidden = false;
     $("#ideas-section").hidden = false;
     $("#ideas-grid").innerHTML = "";
     $("#export-link").href = `/report/${currentSessionId}`;
+    // Activate the chat sidebar now that we have data.
+    $("#chat-empty").hidden = true;
+    $("#ai-suggestions").hidden = false;
+    $("#chat-input").disabled = false;
+    $("#chat-submit").disabled = false;
+    $("#chat-input").placeholder = "Ask about your data…";
+    $("#chat-input").focus();
     initBuilder(profData.profile);
     loadAiSuggestions(currentSessionId);
   } catch (err) {
