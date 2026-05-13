@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.*
+*.save
+*~
 .DS_Store
 data/sessions/
 *.parquet
