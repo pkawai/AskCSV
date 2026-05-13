@@ -110,3 +110,66 @@ def test_suggest_followups_handles_bad_json():
     with patch.object(llm_client, "get_client", return_value=FakeClient("nope")):
         out = suggester.suggest_followups("orig", "insight", "bar")
     assert out == []
+
+
+def test_suggest_data_ideas_parses_json(session_id):
+    payload = json.dumps(
+        {
+            "ideas": [
+                {
+                    "title": "Forecast monthly revenue",
+                    "what": "Predict next quarter's revenue per region.",
+                    "how": ["Aggregate by month + region", "Fit Prophet"],
+                    "difficulty": "medium",
+                    "category": "ml",
+                },
+                {
+                    "title": "Segment customers",
+                    "what": "Group buyers by purchase patterns.",
+                    "how": ["K-means on quantity + revenue"],
+                    "difficulty": "easy",
+                    "category": "segmentation",
+                },
+            ]
+        }
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) == 2
+    assert out[0]["title"] == "Forecast monthly revenue"
+    assert out[0]["category"] == "ml"
+    assert out[0]["difficulty"] == "medium"
+
+
+def test_suggest_data_ideas_caps_at_max(session_id):
+    many = json.dumps(
+        {"ideas": [{"title": f"i{i}", "what": "x", "how": ["a"]} for i in range(20)]}
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(many)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert len(out) <= suggester.MAX_DATA_IDEAS
+
+
+def test_suggest_data_ideas_normalizes_invalid_fields(session_id):
+    payload = json.dumps(
+        {
+            "ideas": [
+                {
+                    "title": "x",
+                    "what": "y",
+                    "how": ["z"],
+                    "difficulty": "extreme",
+                    "category": "made-up",
+                }
+            ]
+        }
+    )
+    with patch.object(llm_client, "get_client", return_value=FakeClient(payload)):
+        out = suggester.suggest_data_ideas(session_id)
+    assert out[0]["difficulty"] == "medium"
+    assert out[0]["category"] == "analytics"
+
+
+def test_suggest_data_ideas_handles_bad_json(session_id):
+    with patch.object(llm_client, "get_client", return_value=FakeClient("nope")):
+        assert suggester.suggest_data_ideas(session_id) == []
