@@ -7,9 +7,15 @@ from __future__ import annotations
 
 import io
 import os
+import time
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
+
+# Bumped at every server restart. Appended to static asset URLs so the browser
+# never serves a stale app.js / styles.css against a newer index.html. Fixes
+# the 'Cannot set properties of null' class of errors caused by cache mismatch.
+ASSET_VERSION = str(int(time.time()))
 
 from src import (
     builder,
@@ -36,9 +42,20 @@ def create_app() -> Flask:
     )
     app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB upload cap
 
+    @app.after_request
+    def _no_cache_html(response):
+        """Force browsers to revalidate HTML on every request so they never
+        serve a stale index.html against newer static assets. Static files
+        are still cached normally (with cache-busted query strings)."""
+        if response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     @app.route("/")
     def index() -> str:
-        return render_template("index.html")
+        return render_template("index.html", asset_version=ASSET_VERSION)
 
     @app.route("/health")
     def health() -> dict:

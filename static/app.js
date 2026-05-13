@@ -4,6 +4,20 @@ const $ = (sel) => document.querySelector(sel);
 const fileInput = $("#csv-file");
 const uploadStatus = $("#upload-status");
 
+// Defensive setters — quietly no-op if the DOM element is missing (e.g. when
+// a browser cache mismatch serves new JS against an old HTML). Without these,
+// a single stale element would crash the whole post-upload flow.
+function setHidden(sel, value) {
+  const el = typeof sel === "string" ? document.querySelector(sel) : sel;
+  if (el) el.hidden = value;
+  else console.warn(`setHidden: ${sel} not found — hard-refresh the page (Cmd+Shift+R).`);
+}
+function setProp(sel, prop, value) {
+  const el = typeof sel === "string" ? document.querySelector(sel) : sel;
+  if (el) el[prop] = value;
+  else console.warn(`setProp: ${sel} not found — hard-refresh (Cmd+Shift+R).`);
+}
+
 let currentSessionId = null;
 
 // Clean SVG icon for close/delete buttons. Font-glyph × renders as Cyrillic Ч
@@ -153,16 +167,19 @@ async function uploadAndRender(file) {
     const profData = await profRes.json();
     if (!profRes.ok) throw new Error(profData.error || "Profile failed");
     renderAll(data, profData);
-    $("#ideas-section").hidden = false;
-    $("#ideas-grid").innerHTML = "";
-    $("#export-link").href = `/report/${currentSessionId}`;
-    // Activate the chat sidebar now that we have data.
-    $("#chat-empty").hidden = true;
-    $("#ai-suggestions").hidden = false;
-    $("#chat-input").disabled = false;
-    $("#chat-submit").disabled = false;
-    $("#chat-input").placeholder = "Ask about your data…";
-    $("#chat-input").focus();
+    setHidden("#ideas-section", false);
+    setProp("#ideas-grid", "innerHTML", "");
+    setProp("#export-link", "href", `/report/${currentSessionId}`);
+    // Activate the chat sidebar now that we have data. Defensive setters
+    // so a single missing element (from a cache mismatch) doesn't kill the
+    // whole flow — the dashboard above still renders cleanly.
+    setHidden("#chat-empty", true);
+    setHidden("#ai-suggestions", false);
+    setProp("#chat-input", "disabled", false);
+    setProp("#chat-submit", "disabled", false);
+    setProp("#chat-input", "placeholder", "Ask about your data…");
+    const chatInput = $("#chat-input");
+    if (chatInput) chatInput.focus();
     initBuilder(profData.profile);
     loadAiSuggestions(currentSessionId);
   } catch (err) {
