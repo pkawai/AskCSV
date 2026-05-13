@@ -19,17 +19,23 @@ git clone <repo-url> AskCSV && cd AskCSV
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # paste your GROQ_API_KEY (free tier at https://console.groq.com/keys)
-python app.py          # http://127.0.0.1:5000
+python app.py          # http://127.0.0.1:8000
 ```
 
 ## Tests
 ```bash
-pytest -v   # 120+ tests, all mocked — no network required
+pytest -v   # 140+ tests, all mocked — no network required
 ```
+
+### Why port 8000, not 5000?
+macOS Sonoma+ uses port 5000 for AirPlay Receiver. Even when Flask binds
+successfully to localhost:5000, Chrome's routing can hit the AirPlay
+service first and refuse the connection. Port 8000 dodges this entirely.
+Override with `PORT=9000 python app.py` if you need something else.
 
 ## Demo walkthrough (Week 16, ~7 minutes)
 
-1. `python app.py`, open `http://127.0.0.1:5000`.
+1. `python app.py`, open `http://127.0.0.1:8000`.
 2. Drag `data/samples/sales.csv` onto the upload zone.
 3. **Overview** card appears: rows, columns, encoding, duplicates removed.
 4. **Columns** grid shows per-column dtype + null / unique counts.
@@ -82,10 +88,10 @@ For a one-off demo where you want a public URL anyone can hit:
 brew install ngrok          # macOS
 
 # 2. Start AskCSV
-python app.py               # runs on localhost:5000
+python app.py               # runs on localhost:8000
 
 # 3. In a second terminal, open a tunnel
-ngrok http 5000
+ngrok http 8000
 ```
 
 ngrok prints a public HTTPS URL like `https://a1b2-c3d4.ngrok-free.app` — share it with anyone, they hit your local app. Free tier sessions live ~2 hours; restart for a new URL. **Anyone with the URL can use your API keys** — only share during active demos.
