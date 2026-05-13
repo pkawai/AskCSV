@@ -73,10 +73,34 @@ For each idea, return:
     "insight"      — business insight or pattern discovery
     "segmentation" — clustering or grouping
 
-Return JSON only, exactly this shape:
+Return JSON only. The TOP-LEVEL key MUST be exactly "ideas" (lowercase plural).
+Each idea object MUST have exactly these fields: title, what, how, difficulty, category.
+
+Example output for a sales dataset with columns [date, region, product, revenue, customer_id]:
+
 {
   "ideas": [
-    {"title": "...", "what": "...", "how": ["...", "..."], "difficulty": "easy", "category": "analytics"}
+    {
+      "title": "Monthly revenue forecast",
+      "what": "Predict next quarter's revenue per region from history.",
+      "how": [
+        "Resample revenue by month + region",
+        "Fit Prophet or ARIMA on each region series",
+        "Backtest on the last 3 months"
+      ],
+      "difficulty": "medium",
+      "category": "ml"
+    },
+    {
+      "title": "Customer lifetime value dashboard",
+      "what": "Show total spend per customer with cohort retention.",
+      "how": [
+        "Aggregate revenue by customer_id",
+        "Bucket customers into cohorts by first purchase month"
+      ],
+      "difficulty": "easy",
+      "category": "dashboard"
+    }
   ]
 }
 
@@ -85,6 +109,7 @@ Rules:
 - Mix easy and harder ideas (at least one of each difficulty).
 - Avoid generic suggestions like "make charts" — be specific to this data shape.
 - If the data is clearly a domain (sales / HR / weather / etc.), tailor ideas to that domain.
+- Always use the exact field names: title, what, how, difficulty, category. Not "name", "description", "steps".
 """
 
 
